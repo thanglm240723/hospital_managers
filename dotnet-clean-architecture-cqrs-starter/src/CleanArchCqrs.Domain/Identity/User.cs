@@ -1,3 +1,6 @@
+using CleanArchCqrs.Domain.Common;
+using CleanArchCqrs.Domain.Identity.Events;
+
 namespace CleanArchCqrs.Domain.Identity;
 
 public sealed class User : AggregateRoot<Guid>
@@ -6,8 +9,8 @@ public sealed class User : AggregateRoot<Guid>
 	public string FullName { get;  private set; } = default!;
 	public string Email { get;  private set; } = default!;
 	public string PasswordHash { get;  private set; } = default!;
-	public string? Avatarurl  { get; private set; } 
-	public string Role { get; private set; } 
+	public string? AvatarUrl  { get; private set; } 
+	public string Roles { get; private set; } 
     public bool IsActive { get; private set; } 
     public DateTimeOffset? LastLoginAt { get; private set; }
 	public DateTimeOffset CreatedAt { get;  set; }
@@ -23,8 +26,8 @@ public sealed class User : AggregateRoot<Guid>
 		Email = email;
 		PasswordHash = passwordHash;
 		CreatedAt = DateTimeOffset.UtcNow;
-	    Avatarurl = avatarUrl;
-	    Role = role;
+	    AvatarUrl = avatarUrl;
+	    Roles = role;
     }
 	
 
@@ -48,9 +51,9 @@ public sealed class User : AggregateRoot<Guid>
         }
 
         var user = new User(Guid.CreateVersion7(), fullName.Trim(),
-                            email, passwordHash, role, avatarUrl);
+                            email, passwordHash, avatarUrl, role);
 
-        user.Raise(new UserRegisteredDomainEvent(user.Id, email.Value, role));
+        user.Raise(new UserRegisteredDomainEvent(user.Id, email, role));
         return user;
     }
 
@@ -87,6 +90,7 @@ public sealed class User : AggregateRoot<Guid>
         if (IsActive)
         {
             IsActive = false;
+            Touch();
             Raise(new UserDeactivatedDomainEvent(Id));
         }
     }
@@ -97,6 +101,7 @@ public sealed class User : AggregateRoot<Guid>
         if (!IsActive)
         {
             IsActive = true;
+            Touch();
             Raise(new UserActivatedDomainEvent(Id));
         }
     }
