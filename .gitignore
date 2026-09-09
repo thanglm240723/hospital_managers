@@ -1,0 +1,15 @@
+# IDE / editor
+.vs/
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Node
+node_modules/
+
+# .NET build output
+bin/
+obj/
