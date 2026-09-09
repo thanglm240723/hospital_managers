@@ -110,7 +110,7 @@ Trong `Sidebar`: xoá `TOKEN_STORAGE` + `USER_STORAGE`, `dispatch(storeAuthLogou
 
 ⚠ Token JWT **không thu hồi được ở server**. Đăng xuất chỉ là xoá phía client;
 token cũ vẫn hợp lệ tới lúc `exp`. Muốn thu hồi thật phải làm blacklist hoặc refresh token —
-xem [02-be-auth.md](02-be-auth.md) mục F.
+xem [luong-login.md](luong-login.md) mục "Ngoài phạm vi".
 
 ✓ **Xong phase 7 khi:** login thật với tài khoản seed → vào được layout;
 F5 vẫn giữ đăng nhập; sửa token trong localStorage thành rác → tự đá về `/login`;

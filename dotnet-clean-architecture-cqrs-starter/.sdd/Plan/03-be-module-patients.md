@@ -36,7 +36,7 @@ API/
 
 ## Bước 3.1 — Entity
 
-**→ Tạo `Domain/Entities/Patient.cs`** — `BaseEntity`, `IAggregateRoot`
+**→ Tạo `Domain/Patients/Patient.cs`** — kế thừa `AggregateRoot<Guid>`
 
 | Property | Kiểu | Ràng buộc |
 |---|---|---|
@@ -100,9 +100,9 @@ public record CreatePatientCommand(
 **`CreatePatientCommandHandler` — logic:**
 1. `IdentityNumber` có giá trị → check trùng, trùng thì ném `BusinessRuleViolationException`.
 2. Sinh `PatientCode`.
-3. `new Patient { ... }`, `AddAsync`, trả `patient.Id`.
+3. `Patient.Create(...)` (factory, không dùng `new`), `AddAsync`, trả `patient.Id`.
 
-⚠ **Không** set `CreatedAt` / `CreatedBy` trong handler — `SaveChangesAsync` của DbContext đã tự làm (bước 1.4).
+⚠ **Không** set `CreatedAt` / `UpdatedAt` trong handler — entity tự quản lý qua factory `Create()` và `Touch()`.
 
 **`DeletePatientCommandHandler`:** kiểm tra tồn tại trước, không thấy thì ném `NotFoundException`.
 Xoá là soft delete, DbContext tự chuyển.

@@ -10,11 +10,11 @@ public sealed class User : AggregateRoot<Guid>
 	public string Email { get;  private set; } = default!;
 	public string PasswordHash { get;  private set; } = default!;
 	public string? AvatarUrl  { get; private set; } 
-	public string Roles { get; private set; } 
-    public bool IsActive { get; private set; } 
+	public string Role { get; private set; } 
+    public bool IsActive { get; private set; } = true;
     public DateTimeOffset? LastLoginAt { get; private set; }
-	public DateTimeOffset CreatedAt { get;  set; }
-	public DateTimeOffset? UpdatedAt { get;  set; }
+	public DateTimeOffset CreatedAt { get; private set; }
+	public DateTimeOffset? UpdatedAt { get; private set; }
 	
 
 	private User() { }
@@ -27,7 +27,7 @@ public sealed class User : AggregateRoot<Guid>
 		PasswordHash = passwordHash;
 		CreatedAt = DateTimeOffset.UtcNow;
 	    AvatarUrl = avatarUrl;
-	    Roles = role;
+	    Role = role;
     }
 	
 
@@ -50,8 +50,11 @@ public sealed class User : AggregateRoot<Guid>
             throw new ArgumentException("Role cannot be empty.", nameof(role));
         }
 
+
+        var emailLower = email.Trim().ToLowerInvariant();
+
         var user = new User(Guid.CreateVersion7(), fullName.Trim(),
-                            email, passwordHash, avatarUrl, role);
+                            emailLower, passwordHash, avatarUrl, role);
 
         user.Raise(new UserRegisteredDomainEvent(user.Id, email, role));
         return user;
@@ -106,9 +109,12 @@ public sealed class User : AggregateRoot<Guid>
         }
     }
 
+    public void RecordLogin()
+{
+    LastLoginAt = DateTimeOffset.UtcNow;
+    Touch();
+}
+
     private void Touch() => UpdatedAt = DateTimeOffset.UtcNow;
-
-
-
 
 }

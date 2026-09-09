@@ -1,47 +1,35 @@
-# 00 — Quyết định & quy ước
+# 00 — Quyết định & quy ước chung
 
-## A. Những giả định plan này đang dùng
+File này chỉ chứa **quy ước dùng chung cho mọi module**. Việc cụ thể của từng luồng nằm ở file riêng.
 
-Nếu bạn muốn khác, sửa ở đây trước rồi mới code — các file sau đều dựa vào mục này.
+> Đã đối chiếu với code thật tại commit `9496ffb`.
 
-| Vấn đề | Plan chọn | Lý do |
+## A. Những quyết định đang áp dụng
+
+Muốn khác thì sửa ở đây trước rồi mới code — các file sau đều dựa vào mục này.
+
+| Vấn đề | Chốt | Lý do |
 |---|---|---|
-| Database | **SQL Server** qua EF Core 9, code-first + Migrations | `appsettings.json` sẵn connection string LocalDB |
+| Database | **SQL Server** qua EF Core `9.0.4`, code-first + Migrations | `appsettings.json` sẵn connection string LocalDB |
 | Provider hiện có | Chỉ `InMemory` | ⚠ **phải cài thêm** `Microsoft.EntityFrameworkCore.SqlServer` |
-| Phát hành token | **CleanArchCqrs.API** | Bạn đã chốt: BE phát hành |
-| Validate token | **CleanArchCqrs.API** | Gateway không còn tầng auth |
-| Kiểu token | JWT HS256, access token 60 phút | Đủ cho giai đoạn đầu; refresh token xem phase 2 mục F |
-| Phân quyền | Role-based (`[Authorize(Roles = ...)]`) | Đơn giản, đủ cho nghiệp vụ bệnh viện |
-| Kiến trúc service | **Monolith 1 API**, gateway đã sẵn 6 cluster | Tách sau chỉ đổi `Address` |
-| Xoá dữ liệu | **Soft delete** (`IsDeleted`) | Hồ sơ y tế không được xoá cứng |
-| Múi giờ | Lưu **UTC** trong DB, đổi sang giờ VN ở FE | Tránh lệch giờ khi deploy |
+| Lớp nền entity | **`Entity<TId>` + `AggregateRoot<TId>`** đã có trong `Domain/Common/` | Rich domain model: private setter + factory method |
+| Kiểu thời gian | **`DateTimeOffset`**, lưu UTC | Theo code đã viết. FE đổi sang giờ VN khi hiển thị |
+| Khoá chính | `Guid` sinh bằng `Guid.CreateVersion7()` | Tuần tự theo thời gian, không phân mảnh index như `NewGuid()` |
+| Định danh đăng nhập | **Email** | `User` không có `UserName` |
+| Phát hành + validate token | **CleanArchCqrs.API** | Gateway không có tầng auth, chỉ forward header |
+| Kiểu token | JWT HS256, access token 60 phút | Refresh token để backlog |
+| Phân quyền | Role-based, 1 user 1 role (`[Authorize(Roles = ...)]`) | Đủ cho nghiệp vụ bệnh viện |
+| Kiến trúc service | **Monolith 1 API**, gateway đã sẵn 6 cluster | Tách sau chỉ đổi `Address` trong `appsettings.json` |
+| Xoá dữ liệu | **Soft delete** (`IsDeleted`) cho hồ sơ nghiệp vụ | Hồ sơ y tế không được xoá cứng |
 
-## B. Package cần cài thêm
+⚠ **`User` không có `IsDeleted`** — dùng `IsActive` để khoá tài khoản là đủ. Soft delete chỉ áp cho
+`Patient`, `MedicalRecord`, `Appointment`, `Invoice`. Đừng thêm `IsDeleted` vào `User` cho "đồng bộ".
 
-Chưa có trong `.csproj`, phải thêm trước khi code:
+⚠ **Không dùng `BaseEntity` / `IAggregateRoot`.** Bản plan đầu có đề xuất nhưng code đã đi hướng
+`Entity<TId>` generic — tốt hơn và đã chạy. Entity mới kế thừa `AggregateRoot<Guid>` nếu là aggregate root,
+`Entity<Guid>` nếu không.
 
-```bash
-cd D:/hospital_management/dotnet-clean-architecture-cqrs-starter
-
-# Infrastructure — SQL Server + tooling migration
-dotnet add src/CleanArchCqrs.Infrastructure package Microsoft.EntityFrameworkCore.SqlServer
-dotnet add src/CleanArchCqrs.Infrastructure package Microsoft.EntityFrameworkCore.Design
-
-# API — validate JWT
-dotnet add src/CleanArchCqrs.API package Microsoft.AspNetCore.Authentication.JwtBearer
-
-# Infrastructure — phát hành JWT + hash password
-dotnet add src/CleanArchCqrs.Infrastructure package Microsoft.IdentityModel.JsonWebTokens
-dotnet add src/CleanArchCqrs.Infrastructure package Microsoft.Extensions.Identity.Core
-
-# CLI migration (1 lần cho máy)
-dotnet tool install --global dotnet-ef
-```
-
-⚠ EF Core hiện đang pin `9.0.4`. Giữ **cùng version** cho mọi package `Microsoft.EntityFrameworkCore.*`,
-lệch version sẽ lỗi lúc chạy migration.
-
-## C. Quy tắc kiến trúc — không được vi phạm
+## B. Quy tắc kiến trúc — không được vi phạm
 
 ```
 Domain          ← không tham chiếu project nào, không package nào
@@ -51,25 +39,32 @@ API             → Application, Infrastructure
 Gateway         → không tham chiếu project nào
 ```
 
-Kiểm tra nhanh: mở `.csproj`, nếu `Domain` có `<ProjectReference>` hoặc `<PackageReference>` là đã sai.
+Kiểm tra nhanh: mở `.csproj`, nếu `Domain` có bất kỳ `<ProjectReference>` hay `<PackageReference>` nào là đã sai.
 
 **Hệ quả thực tế:**
-- Domain không được `using Microsoft.EntityFrameworkCore` → không đặt `[Table]`, `[Key]` lên entity. Cấu hình bằng Fluent API bên Infrastructure.
+- Domain không được `using Microsoft.EntityFrameworkCore` → không đặt `[Table]`, `[Key]`, `[MaxLength]`,
+  `[NotMapped]` lên entity. Cấu hình toàn bộ bằng Fluent API bên Infrastructure.
+- Domain không được `using MediatR` → `IDomainEvent` **không** kế thừa `INotification`.
+  Cần wrapper `DomainEventNotification<T>` bên Application.
 - Application không được `using` DbContext. Chỉ biết `IXxxRepository` khai báo ở Domain.
+- Application không được `using Microsoft.AspNetCore.Http`. Cần thông tin request thì khai interface
+  (`ICurrentUser`), implement bên API.
 - Controller không được `using` Infrastructure. Chỉ gọi `IMediator`.
 
-## D. Quy ước đặt tên (giữ đúng của codebase gốc)
+## C. Quy ước đặt tên
 
 **C#**
-- File-scoped namespace: `namespace CleanArchCqrs.Domain.Entities;`
-- 1 file = 1 type. Tên file = tên type.
-- XML doc `///` trên mọi public type và public method.
+- File-scoped namespace. 1 file = 1 type, tên file = tên type.
+- Tổ chức theo **feature folder**, không theo kiểu kỹ thuật:
+  `Domain/Identity/{User.cs, IUserRepository.cs, Events/}` — không phải `Domain/Entities/`, `Domain/Interfaces/`.
 - Command/Query là `record` positional, implement `IRequest<T>`.
+- Domain event là `sealed record ... : DomainEvent`, hậu tố `DomainEvent`, đặt trong `<Feature>/Events/`.
 - Handler **tách file riêng**, đặt **cùng folder** với command:
-  `Patients/Commands/CreatePatient/{CreatePatientCommand.cs, CreatePatientCommandHandler.cs}`
-- Validator: `Patients/Validators/CreatePatientCommandValidator.cs`
+  `Auth/Commands/Login/{LoginCommand.cs, LoginCommandHandler.cs}`
+- Validator: `<Feature>/Validators/XxxCommandValidator.cs`
+- Hằng vai trò: class số nhiều `Roles`, hằng số ít `Roles.Admin`. Property trên entity là `Role` (số ít).
 - Field private: `_camelCase`. Constructor injection, không dùng property injection.
-- Method bất đồng bộ: hậu tố `Async`, **luôn** nhận `CancellationToken cancellationToken = default`.
+- Method bất đồng bộ: hậu tố `Async`, **luôn** nhận `CancellationToken ct = default`.
 - DI theo layer: `DependencyInjection/XxxServiceExtensions.cs` → `AddXxxServices(this IServiceCollection)`.
 
 **Đặt tên use-case** — dùng động từ nghiệp vụ, không dùng CRUD chung chung:
@@ -85,9 +80,48 @@ Kiểm tra nhanh: mở `.csproj`, nếu `Domain` có `<ProjectReference>` hoặc
 - SCSS theo ITCSS + BEM: `c-patient-list__row`, modifier `c-badge--danger`.
 - Prettier: singleQuote, trailingComma `all`, tabWidth 2, printWidth **150**.
 
+## D. Model dùng chung — phân trang
+
+Các module có danh sách đều dùng chung 2 type này. Tạo khi làm module đầu tiên có phân trang
+(module Patients), không cần cho luồng login.
+
+**`Application/Common/Models/PagedResult.cs`**
+
+```csharp
+public class PagedResult<T>
+{
+    public IReadOnlyList<T> Items { get; init; } = [];
+    public int TotalCount { get; init; }
+    public int PageNumber { get; init; }
+    public int PageSize { get; init; }
+    public int TotalPages => PageSize == 0 ? 0 : (int)Math.Ceiling((double)TotalCount / PageSize);
+    public bool HasPreviousPage => PageNumber > 1;
+    public bool HasNextPage => PageNumber < TotalPages;
+}
+```
+
+**`Application/Common/Models/PagedQuery.cs`** — base record cho mọi query có phân trang:
+
+```csharp
+public abstract record PagedQuery
+{
+    public int PageNumber { get; init; } = 1;
+    public int PageSize { get; init; } = 20;
+    public string? SearchTerm { get; init; }
+}
+```
+
+Kèm hàm chuẩn hoá: `PageNumber < 1 → 1`, `PageSize` kẹp trong `[1, 100]`.
+
+⚠ Template gốc định nghĩa `PagedResult<T>` **2 lần** (Domain và Application). Chỉ giữ **1 bản ở Application**.
+Repository bên Domain trả `(IReadOnlyList<T> Items, int TotalCount)` — **không** trả `PagedResult`,
+vì đó là model của tầng Application.
+
+⚠ Tên tham số phải khớp giữa BE và FE: `pageNumber`, `pageSize`, `searchTerm`.
+
 ## E. Cấu trúc URL
 
-Gateway đã cố định 6 prefix. Controller bên API **phải** khớp:
+Gateway đã cố định 6 prefix trong `Gateway/appsettings.json`. Controller bên API **phải** khớp:
 
 | Gateway route | Controller | `[Route]` |
 |---|---|---|
@@ -101,4 +135,18 @@ Gateway đã cố định 6 prefix. Controller bên API **phải** khớp:
 ⚠ `[Route("api/[controller]")]` sinh ra `api/medicalrecords` (không có gạch nối) — **không khớp** route gateway.
 Với `MedicalRecordsController` phải viết tay: `[Route("api/medical-records")]`.
 
-✓ **Xong phase 0 khi:** đã chạy hết lệnh mục B, `dotnet build` vẫn 0 error.
+Cả 6 cluster đều trỏ về `http://localhost:5289/` (monolith). Khi tách service chỉ đổi `Address`.
+
+## F. Xử lý lỗi — chuẩn chung
+
+Mọi lỗi trả về theo **RFC 7807 Problem Details**, map trong `GlobalExceptionHandlerMiddleware`:
+
+| Exception | Status |
+|---|---|
+| `ValidationException` (Application) | 400, kèm `errors` |
+| `UnauthorizedAccessException` | 401 |
+| `NotFoundException` (Domain) | 404 |
+| `BusinessRuleViolationException` (Domain) | 409 |
+| còn lại | 500 — log full, response chỉ trả message chung |
+
+⚠ Không bao giờ trả `ex.ToString()` ra response ở Production.

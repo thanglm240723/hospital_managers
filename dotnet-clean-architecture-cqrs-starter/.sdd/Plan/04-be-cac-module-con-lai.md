@@ -141,7 +141,7 @@ Role: `Accountant` + `Admin` toàn quyền; `Receptionist` chỉ đọc; `Doctor
 
 ## Checklist chung mỗi module
 
-- [ ] Entity kế thừa `BaseEntity`, aggregate root có `IAggregateRoot`
+- [ ] Entity kế thừa `AggregateRoot<Guid>` (aggregate root) hoặc `Entity<Guid>`; khởi tạo qua factory, không `new`
 - [ ] Repository interface ở **Domain**, implementation ở **Infrastructure**
 - [ ] DTO list (Summary) tách khỏi DTO chi tiết
 - [ ] Validator chỉ kiểm hình dạng; luật nghiệp vụ ở handler/entity

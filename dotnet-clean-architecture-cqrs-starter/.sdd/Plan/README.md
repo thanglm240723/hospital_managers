@@ -7,7 +7,7 @@ Kế hoạch code tay từng bước cho 3 codebase:
 
 | Codebase | Đường dẫn | Trạng thái hiện tại |
 |---|---|---|
-| Backend | `<workspace>/dotnet-clean-architecture-cqrs-starter/` | 4 project rỗng (chỉ còn `.csproj`, `Program.cs`, 2 `ServiceExtensions`) |
+| Backend | `<workspace>/dotnet-clean-architecture-cqrs-starter/` | **Domain đã xong** (`Entity`, `AggregateRoot`, `User`, 5 domain event). Application / Infrastructure / API vẫn rỗng |
 | Gateway | `<workspace>/dotnet-clean-architecture-cqrs-starter/src/CleanArchCqrs.Gateway/` | **Đã xong** — YARP routing thuần, 6 route |
 | Frontend | `<workspace>/react-codebase/` | Chỉ còn `src/index.js` (đang lỗi import), `src/scss/`, `config/`, `scripts/` |
 
@@ -17,9 +17,8 @@ Làm tuần tự. Mỗi phase phụ thuộc phase trước.
 
 | # | File | Nội dung | Ước lượng |
 |---|---|---|---|
-| 0 | [00-quyet-dinh-va-quy-uoc.md](00-quyet-dinh-va-quy-uoc.md) | Chốt DB, package cần thêm, quy ước đặt tên | 30 phút |
-| 1 | [01-be-nen-tang.md](01-be-nen-tang.md) | Base entity, exception, pipeline behavior, DbContext, error middleware | 1 ngày |
-| 2 | [02-be-auth.md](02-be-auth.md) | User, hash password, **phát hành JWT**, validate JWT, `/api/auth` | 1–2 ngày |
+| 0 | [00-quyet-dinh-va-quy-uoc.md](00-quyet-dinh-va-quy-uoc.md) | Quy ước chung: kiến trúc, đặt tên, URL, xử lý lỗi, phân trang | đọc 15 phút |
+| 1–2 | [luong-login.md](luong-login.md) | **Luồng login đầy đủ** — sửa Domain, DbContext, pipeline, JWT, `/api/auth`, seed admin | 2–3 ngày |
 | 3 | [03-be-module-patients.md](03-be-module-patients.md) | Vertical slice mẫu đầy đủ — **học thuộc file này** | 1–2 ngày |
 | 4 | [04-be-cac-module-con-lai.md](04-be-cac-module-con-lai.md) | Doctors, Appointments, MedicalRecords, Billing | 4–6 ngày |
 | 5 | [05-gateway.md](05-gateway.md) | Việc cần làm khi tách service | 2 giờ |
