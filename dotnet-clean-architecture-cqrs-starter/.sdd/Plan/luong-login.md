@@ -150,13 +150,15 @@ bằng chứng được.
 
 ---
 
-# Phần 1 — Package cần cài
+# Phần 1 — Package cần cài ✅ ĐÃ XONG
+
+> Đã chạy xong, không cần làm lại. Giữ lại đây để tra khi dựng máy mới.
 
 ```bash
 cd D:/hospital_management/dotnet-clean-architecture-cqrs-starter
 
-dotnet add src/CleanArchCqrs.Infrastructure package Microsoft.EntityFrameworkCore.SqlServer --version 9.0.4
-dotnet add src/CleanArchCqrs.Infrastructure package Microsoft.EntityFrameworkCore.Design   --version 9.0.4
+dotnet add src/CleanArchCqrs.Infrastructure package Microsoft.EntityFrameworkCore.SqlServer --version 10.0.12
+dotnet add src/CleanArchCqrs.Infrastructure package Microsoft.EntityFrameworkCore.Design   --version 10.0.12
 dotnet add src/CleanArchCqrs.Infrastructure package Microsoft.Extensions.Identity.Core
 dotnet add src/CleanArchCqrs.Infrastructure package Microsoft.IdentityModel.JsonWebTokens
 
@@ -165,8 +167,9 @@ dotnet add src/CleanArchCqrs.API package Microsoft.AspNetCore.Authentication.Jwt
 dotnet tool install --global dotnet-ef     # 1 lần cho máy
 ```
 
-⚠ EF Core đang pin `9.0.4`. Mọi package `Microsoft.EntityFrameworkCore.*` phải **cùng version**,
-lệch sẽ lỗi lúc chạy migration.
+⚠ Toàn bộ EF Core + `Microsoft.Extensions.*` đã đưa về **`10.0.12`** cho khớp TFM `net10.0`.
+Bản gốc pin `9.0.4`, nhưng `Microsoft.Extensions.Identity.Core` kéo `Microsoft.Extensions.*` 10.x xuống nên
+sinh lỗi `NU1605` (package downgrade). Giữ mọi package `Microsoft.*` cùng dòng 10.x.
 
 ⚠ Không cài package nào vào `CleanArchCqrs.Domain`. Domain phải giữ 0 package.
 
@@ -174,35 +177,63 @@ lệch sẽ lỗi lúc chạy migration.
 
 # Phần 2 — Domain: bổ sung hợp đồng
 
-**→ Tạo `Domain/Identity/IUserRepository.cs`**
+5 file, đều ngắn. Xong phần này là Domain đóng lại hoàn toàn, từ Phần 3 mới sang Application.
 
-```csharp
-Task<User?> GetByEmailAsync(string email, CancellationToken ct = default);
-Task<User?> GetByIdAsync(Guid id, CancellationToken ct = default);
-Task<bool>  EmailExistsAsync(string email, CancellationToken ct = default);
-Task AddAsync(User user, CancellationToken ct = default);
-void Update(User user);
-```
+Nhắc lại quy ước áp dụng cho cả 5 file: file-scoped namespace, 1 file 1 type, XML doc `///` trên
+public type và public method, method bất đồng bộ có hậu tố `Async` và nhận `CancellationToken ct = default`.
 
-⚠ `Update` không cần `async` — EF chỉ đánh dấu state trong bộ nhớ, chưa chạm DB.
+### 2.1 — `Domain/Identity/IUserRepository.cs`
 
-**→ Tạo `Domain/Common/IUnitOfWork.cs`**
+Namespace `CleanArchCqrs.Domain.Identity` — đặt **cạnh `User.cs`**, không tách ra `Domain/Interfaces/`.
+Feature folder: cái gì thuộc về Identity thì nằm trong Identity.
+
+| Method | Trả về | Ghi chú |
+|---|---|---|
+| `GetByEmailAsync(string email, ct)` | `User?` | Dùng cho login. Phải trả instance **có tracking** |
+| `GetByIdAsync(Guid id, ct)` | `User?` | Dùng cho `GET /me` |
+| `EmailExistsAsync(string email, ct)` | `bool` | Dùng cho `Register`, chưa cần ở luồng login |
+| `AddAsync(User user, ct)` | `Task` | Chỉ stage, chưa ghi DB |
+| `Update(User user)` | `void` | **Không** `async` |
+
+⚠ `Update` trả `void` chứ không phải `Task`: EF chỉ đánh dấu entity state trong bộ nhớ, không có I/O nào
+xảy ra. Trả `Task` ở đây là nói dối về hành vi của method, và kéo theo `await` vô nghĩa ở mọi handler.
+
+⚠ Repository **không** có `SaveChangesAsync`. Việc đó thuộc `IUnitOfWork` — xem 2.2.
+
+### 2.2 — `Domain/Common/IUnitOfWork.cs`
 
 ```csharp
 Task<int> SaveChangesAsync(CancellationToken ct = default);
 ```
 
-Tách `SaveChanges` khỏi repository để một handler ghi nhiều aggregate trong **một** transaction.
-Đây cũng là chỗ domain event được publish ở Phần 8.
+Tách khỏi repository để một handler ghi nhiều aggregate trong **một** transaction. Nếu mỗi repository tự
+`SaveChanges` thì handler nào đụng 2 bảng sẽ tạo ra 2 transaction rời — hỏng một nửa là dữ liệu lệch.
 
-**→ Tạo `Domain/Exceptions/`** — mỗi exception 1 file:
+`AppDbContext` sẽ implement interface này ở Phần 5, và đây chính là chỗ publish domain event ở Phần 8.
 
-| Exception | Dùng khi | API map thành |
-|---|---|---|
-| `NotFoundException(string entity, object key)` | không tìm thấy bản ghi | 404 |
-| `BusinessRuleViolationException(string message)` | vi phạm quy tắc nghiệp vụ | 409 |
+### 2.3–2.5 — `Domain/Exceptions/`
 
-⚠ Login **không** dùng `NotFoundException` khi sai email — xem cảnh báo bảo mật ở Phần 4.
+Mỗi type 1 file, namespace `CleanArchCqrs.Domain.Exceptions`.
+
+| File | Kiểu | Chữ ký | API map |
+|---|---|---|---|
+| `DomainException.cs` | `abstract class : Exception` | `protected DomainException(string message)` | — |
+| `NotFoundException.cs` | `sealed class : DomainException` | `(string entityName, object key)` | 404 |
+| `BusinessRuleViolationException.cs` | `sealed class : DomainException` | `(string message)` | 409 |
+
+`NotFoundException` nên giữ lại `EntityName` và `Key` thành property, đồng thời tự dựng message dạng
+`"{entityName} with key '{key}' was not found."` — middleware log được cấu trúc, không phải parse chuỗi.
+
+**Tại sao cần lớp cha `DomainException`:** middleware ở Phần 6 phân biệt được "lỗi nghiệp vụ đã lường trước"
+với "lỗi ngoài dự kiến" bằng một câu `catch (DomainException)`, thay vì liệt kê từng type và quên mất
+type mới thêm sau này. Lỗi nghiệp vụ trả message thật cho client; lỗi ngoài dự kiến chỉ trả message chung.
+
+⚠ Login **không** dùng `NotFoundException` khi không tìm thấy email. Phải ném `UnauthorizedAccessException`
+giống hệt trường hợp sai mật khẩu — xem cảnh báo bảo mật ở Phần 4.
+
+✓ **Xong Phần 2 khi:**
+- `dotnet build` — 0 error
+- `Domain.csproj` vẫn **0** `<PackageReference>` và **0** `<ProjectReference>`
 
 ---
 

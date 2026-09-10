@@ -10,8 +10,8 @@ Muốn khác thì sửa ở đây trước rồi mới code — các file sau đ
 
 | Vấn đề | Chốt | Lý do |
 |---|---|---|
-| Database | **SQL Server** qua EF Core `9.0.4`, code-first + Migrations | `appsettings.json` sẵn connection string LocalDB |
-| Provider hiện có | Chỉ `InMemory` | ⚠ **phải cài thêm** `Microsoft.EntityFrameworkCore.SqlServer` |
+| Database | **SQL Server** qua EF Core `10.0.12`, code-first + Migrations | `appsettings.json` sẵn connection string LocalDB |
+| Provider | `SqlServer` (chính) + `InMemory` (để dành cho test) | Đã cài xong |
 | Lớp nền entity | **`Entity<TId>` + `AggregateRoot<TId>`** đã có trong `Domain/Common/` | Rich domain model: private setter + factory method |
 | Kiểu thời gian | **`DateTimeOffset`**, lưu UTC | Theo code đã viết. FE đổi sang giờ VN khi hiển thị |
 | Khoá chính | `Guid` sinh bằng `Guid.CreateVersion7()` | Tuần tự theo thời gian, không phân mảnh index như `NewGuid()` |

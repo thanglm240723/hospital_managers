@@ -1,3 +1,5 @@
+using CleanArchCqrs.Application.Common.Behaviors;
+using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,6 +14,9 @@ public static class ApplicationServiceExtensions
     {
         // MediatR - register all handlers in this assembly
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationServiceExtensions).Assembly));
+        services.AddValidatorsFromAssembly(typeof(ApplicationServiceExtensions).Assembly);
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
         return services;
     }
