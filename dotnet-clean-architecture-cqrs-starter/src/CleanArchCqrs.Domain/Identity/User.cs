@@ -10,8 +10,8 @@ public sealed class User : AggregateRoot<Guid>, IAuditable
 	public string FullName { get;  private set; } = default!;
 	public string Email { get;  private set; } = default!;
 	public string PasswordHash { get;  private set; } = default!;
-	public string? AvatarUrl  { get; private set; } 
-	public string Role { get; private set; } 
+	public string? AvatarUrl  { get; private set; } = default!;
+	public string Role { get; private set; } = default!;
     public bool IsActive { get; private set; } = true;
     public DateTimeOffset? LastLoginAt { get; private set; }
 	public DateTimeOffset CreatedAt { get; private set; }
@@ -52,10 +52,10 @@ public sealed class User : AggregateRoot<Guid>, IAuditable
         }
 
 
-        var emailLower = email.Trim().ToLowerInvariant();
+        
 
         var user = new User(Guid.CreateVersion7(), fullName.Trim(),
-                            emailLower, passwordHash, avatarUrl, role);
+                            NormalizeEmail(email), passwordHash, avatarUrl, role);
 
         user.Raise(new UserRegisteredDomainEvent(user.Id, email, role));
         return user;
@@ -89,6 +89,17 @@ public sealed class User : AggregateRoot<Guid>, IAuditable
         Raise(new UserProfileUpdatedDomainEvent(Id));
     }
 
+    public static string NormalizeEmail( string email)
+    {
+        if (string.IsNullOrEmpty(email))
+        { 
+        throw new ArgumentException("Email cannot be empty.", nameof(email));
+        }
+        return email.Trim().ToLowerInvariant();
+
+
+    }
+
     public void Deactivate()
     {
         if (IsActive)
@@ -111,10 +122,11 @@ public sealed class User : AggregateRoot<Guid>, IAuditable
     }
 
     public void RecordLogin()
-{
+    {
     LastLoginAt = DateTimeOffset.UtcNow;
     Touch();
-}
+    }
+
 
     private void Touch() => UpdatedAt = DateTimeOffset.UtcNow;
 

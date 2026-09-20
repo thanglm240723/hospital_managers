@@ -1,6 +1,6 @@
 namespace CleanArchCqrs.Domain.Identity
 {
-    public interface IUserRepository
+    public interface IUserRepository 
     {
         /// Nạp user theo email. Trả về instance CÓ TRACKING vì handler login
         /// sẽ gọi RecordLogin() rồi save.
