@@ -1,4 +1,6 @@
 using CleanArchCqrs.API.Middleware;
+using CleanArchCqrs.API.Services;
+using CleanArchCqrs.Application.Common.Interfaces;
 using CleanArchCqrs.Application.DependencyInjection;
 using CleanArchCqrs.Infrastructure.DependencyInjection;
 using Microsoft.AspNetCore.Builder;
@@ -42,6 +44,9 @@ public class Program
                 Description = "Starter template for Clean Architecture with CQRS and MediatR in ASP.NET Core 10"
             });
         });
+
+        builder.Services.AddHttpContextAccessor();
+        builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 
         // Register application and infrastructure services
         builder.Services.AddApplicationServices();
