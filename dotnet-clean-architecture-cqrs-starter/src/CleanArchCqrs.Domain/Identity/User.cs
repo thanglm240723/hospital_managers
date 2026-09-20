@@ -1,9 +1,10 @@
 using CleanArchCqrs.Domain.Common;
+using CleanArchCqrs.Domain.Common.Auditing;
 using CleanArchCqrs.Domain.Identity.Events;
 
 namespace CleanArchCqrs.Domain.Identity;
 
-public sealed class User : AggregateRoot<Guid>
+public sealed class User : AggregateRoot<Guid>, IAuditable
 {
 
 	public string FullName { get;  private set; } = default!;
