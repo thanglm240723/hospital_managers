@@ -1,4 +1,5 @@
 using CleanArchCqrs.Gateway.DependencyInjection;
+using CleanArchCqrs.Gateway.Middleware;
 using Serilog;
 
 namespace CleanArchCqrs.Gateway;
@@ -22,6 +23,9 @@ public class Program
         builder.Services.AddGatewayReverseProxy(builder.Configuration);
 
         var app = builder.Build();
+
+        app.UseMiddleware<CorrelationIdMiddleware>();
+        app.UseSerilogRequestLogging();
 
         app.MapReverseProxy();
 

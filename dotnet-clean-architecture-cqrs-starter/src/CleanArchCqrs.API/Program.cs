@@ -1,3 +1,4 @@
+using CleanArchCqrs.API.Middleware;
 using CleanArchCqrs.Application.DependencyInjection;
 using CleanArchCqrs.Infrastructure.DependencyInjection;
 using Microsoft.AspNetCore.Builder;
@@ -58,6 +59,9 @@ public class Program
                 c.RoutePrefix = string.Empty; // Swagger at root
             });
         }
+
+        app.UseMiddleware<CorrelationIdMiddleware>();
+        app.UseSerilogRequestLogging();
 
         app.UseHttpsRedirection();
         app.UseAuthorization();
