@@ -1,14 +1,20 @@
 using Microsoft.Extensions.DependencyInjection;
-
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using CleanArchCqrs.Infrastructure.Persistence;
 namespace CleanArchCqrs.Infrastructure.DependencyInjection;
 
-/// <summary>
-/// Extension methods for registering Infrastructure layer services.
-/// </summary>
+
 public static class InfrastructureServiceExtensions
 {
-    public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, string? connectionString = null)
+    public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddDbContext<AppDbContext>((sp, opt) =>
+        {
+            opt.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
+            //opt.AddInterceptors(sp.GetRequiredService<DomainEventDispatchInterceptor>());
+        });
+
         return services;
     }
 }
