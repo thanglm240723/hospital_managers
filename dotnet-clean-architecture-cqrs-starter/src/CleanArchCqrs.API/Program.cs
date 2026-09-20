@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
+using Serilog;
 
 namespace CleanArchCqrs.API;
 
@@ -17,6 +18,10 @@ public class Program
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+
+        builder.Host.UseSerilog((context, services, configuration) => configuration
+            .ReadFrom.Configuration(context.Configuration)
+            .ReadFrom.Services(services));
 
         // Add services
         builder.Services.AddControllers()
@@ -39,8 +44,8 @@ public class Program
 
         // Register application and infrastructure services
         builder.Services.AddApplicationServices();
-        builder.Services.AddInfrastructureServices(builder.Configuration.GetConnectionString("DefaultConnection"));
-
+        builder.Services.AddInfrastructureServices(builder.Configuration);
+        
         var app = builder.Build();
 
         // Configure pipeline

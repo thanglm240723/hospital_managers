@@ -1,4 +1,5 @@
 using CleanArchCqrs.Gateway.DependencyInjection;
+using Serilog;
 
 namespace CleanArchCqrs.Gateway;
 
@@ -12,6 +13,10 @@ public class Program
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+
+        builder.Host.UseSerilog((context, services, configuration) => configuration
+            .ReadFrom.Configuration(context.Configuration)
+            .ReadFrom.Services(services));
 
         // Routes and clusters are declarative - see the "ReverseProxy" section in appsettings.json.
         builder.Services.AddGatewayReverseProxy(builder.Configuration);
