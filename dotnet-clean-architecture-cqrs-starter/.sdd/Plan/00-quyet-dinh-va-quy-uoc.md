@@ -10,8 +10,8 @@ Muốn khác thì sửa ở đây trước rồi mới code — các file sau đ
 
 | Vấn đề | Chốt | Lý do |
 |---|---|---|
-| Database | **SQL Server** qua EF Core `10.0.12`, code-first + Migrations | `appsettings.json` sẵn connection string LocalDB |
-| Provider | `SqlServer` (chính) + `InMemory` (để dành cho test) | Đã cài xong |
+| Database | **PostgreSQL** qua EF Core `10.0.12` (Npgsql), code-first + Migrations | Đổi từ SQL Server sang Postgres lúc code Phần 5 — xem `luong-login.md` Phần 5 |
+| Provider | `Npgsql.EntityFrameworkCore.PostgreSQL` (chính) + `InMemory` (để dành cho test) | Gói `Microsoft.EntityFrameworkCore.SqlServer` không còn dùng, gỡ khỏi `.csproj` |
 | Lớp nền entity | **`Entity<TId>` + `AggregateRoot<TId>`** đã có trong `Domain/Common/` | Rich domain model: private setter + factory method |
 | Kiểu thời gian | **`DateTimeOffset`**, lưu UTC | Theo code đã viết. FE đổi sang giờ VN khi hiển thị |
 | Khoá chính | `Guid` sinh bằng `Guid.CreateVersion7()` | Tuần tự theo thời gian, không phân mảnh index như `NewGuid()` |
@@ -21,6 +21,8 @@ Muốn khác thì sửa ở đây trước rồi mới code — các file sau đ
 | Phân quyền | Role-based, 1 user 1 role (`[Authorize(Roles = ...)]`) | Đủ cho nghiệp vụ bệnh viện |
 | Kiến trúc service | **Monolith 1 API**, gateway đã sẵn 6 cluster | Tách sau chỉ đổi `Address` trong `appsettings.json` |
 | Xoá dữ liệu | **Soft delete** (`IsDeleted`) cho hồ sơ nghiệp vụ | Hồ sơ y tế không được xoá cứng |
+| Audit đăng nhập | Bảng `UserLoginHistory` riêng, ghi **mọi** lần thử — kể cả thất bại — không khoá theo refresh token | Refresh token chưa làm (backlog); giá trị audit lớn nhất nằm ở các lần thất bại, mà thất bại thì không có token nào để gắn vào |
+| Audit CRUD | 1 bảng `AuditLog` dùng chung toàn hệ thống, ghi tự động qua `AppDbContext.SaveChangesAsync` | Tránh N bảng lịch sử trùng cấu trúc theo từng module, tránh quên audit khi thêm module mới |
 
 ⚠ **`User` không có `IsDeleted`** — dùng `IsActive` để khoá tài khoản là đủ. Soft delete chỉ áp cho
 `Patient`, `MedicalRecord`, `Appointment`, `Invoice`. Đừng thêm `IsDeleted` vào `User` cho "đồng bộ".

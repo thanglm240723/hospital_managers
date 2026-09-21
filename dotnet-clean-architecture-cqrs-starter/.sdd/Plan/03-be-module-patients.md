@@ -143,13 +143,18 @@ ToTable("Patients")
 HasKey(p => p.Id)
 Property(PatientCode).IsRequired().HasMaxLength(20)
 HasIndex(PatientCode).IsUnique()
-HasIndex(IdentityNumber).IsUnique().HasFilter("[IdentityNumber] IS NOT NULL")
+HasIndex(IdentityNumber).IsUnique()
 HasIndex(PhoneNumber)                          // tra cứu nhanh khi tiếp nhận
 Property(FullName).IsRequired().HasMaxLength(200)
 HasQueryFilter(p => !p.IsDeleted)
 ```
 
-⚠ Unique index trên cột nullable phải có `HasFilter`, nếu không SQL Server coi nhiều `NULL` là trùng nhau.
+⚠ Đang dùng **Postgres** (đã đổi từ SQL Server, xem `00-quyet-dinh-va-quy-uoc.md`) — hành vi NGƯỢC LẠI với
+SQL Server: Postgres coi mỗi `NULL` là một giá trị riêng biệt trong unique index, nên nhiều bệnh nhân cùng
+chưa nhập `IdentityNumber` (nhiều `NULL`) **không** vi phạm unique — không cần `HasFilter` như SQL Server
+(cú pháp `HasFilter("[Col] IS NOT NULL")` với dấu ngoặc vuông cũng là cú pháp T-SQL, không chạy trên Postgres).
+Nếu sau này đổi provider lại thành SQL Server thì nhớ thêm `HasFilter` lại, kẻo nhiều bản ghi cùng để trống
+`IdentityNumber` sẽ bị chặn insert vì "trùng khoá"
 
 ## Bước 3.7 — Repository implementation
 
