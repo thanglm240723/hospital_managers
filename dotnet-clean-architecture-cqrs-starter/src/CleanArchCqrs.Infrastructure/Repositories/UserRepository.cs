@@ -7,6 +7,10 @@ namespace CleanArchCqrs.Infrastructure.Repositories;
 
 public sealed class UserRepository : IUserRepository
 {
+    /// Khoá cố định cho pg_advisory_xact_lock — cùng một khoá cho mọi thao tác đụng vào bất biến
+    /// "còn ≥ 1 admin đang hoạt động" (khoá/mở khoá tài khoản, gỡ role admin ở task 4.4/4.5...).
+    private const long AdminSafetyLockKey = 7_402_198_351;
+
     private readonly AppDbContext _context;
 
     public UserRepository(AppDbContext context) => _context = context;
@@ -46,4 +50,7 @@ public sealed class UserRepository : IUserRepository
 
     public async Task<IReadOnlyList<Guid>> GetUserIdsInRoleAsync(Guid roleId, CancellationToken ct = default)
         => await _context.Set<UserRole>().Where(r => r.RoleId == roleId).Select(r => r.UserId).ToListAsync(ct);
+
+    public async Task AcquireAdminSafetyLockAsync(CancellationToken ct = default)
+        => await _context.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock({AdminSafetyLockKey})", ct);
 }

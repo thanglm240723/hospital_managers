@@ -17,5 +17,10 @@ namespace CleanArchCqrs.Domain.Identity
         Task<User?> GetWithAccessAsync(Guid id, CancellationToken ct = default);
         Task<int> CountActiveUsersInRoleAsync(Guid roleId, Guid? excludingUserId, CancellationToken ct = default);
         Task<IReadOnlyList<Guid>> GetUserIdsInRoleAsync(Guid roleId, CancellationToken ct = default);
+
+        /// Khoá tư vấn (transaction-scoped) để tuần tự hoá các thao tác ảnh hưởng bất biến "còn ≥ 1 admin
+        /// đang hoạt động" (khoá tài khoản, gỡ role admin...). PHẢI gọi bên trong transaction
+        /// (IUnitOfWork.BeginTransactionAsync) — khoá tự nhả khi transaction commit/rollback.
+        Task AcquireAdminSafetyLockAsync(CancellationToken ct = default);
     }
 }

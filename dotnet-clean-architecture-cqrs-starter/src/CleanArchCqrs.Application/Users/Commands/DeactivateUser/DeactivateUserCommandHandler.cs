@@ -47,10 +47,12 @@ public sealed class DeactivateUserCommandHandler : IRequestHandler<DeactivateUse
                    ?? throw new NotFoundException($"User '{request.UserId}' was not found.");
         if (!user.IsActive) return;
         var adminRole = await AdminSafety.GetAdminRoleAsync(_roles, ct);
-        await AdminSafety.EnsureNotLastActiveAdminAsync(_users, adminRole.Id, user, ct);
 
         var now = _time.GetUtcNow();
         await using var transaction = await _unitOfWork.BeginTransactionAsync(ct);
+        // Phải nằm trong transaction: khoá tư vấn tự nhả khi commit/rollback, tuần tự hoá với mọi
+        // request khác cùng đụng bất biến "còn ≥ 1 admin" (xem AdminSafety).
+        await AdminSafety.EnsureNotLastActiveAdminAsync(_users, adminRole.Id, user, ct);
         foreach (var family in await _sessions.GetActiveByUserForUpdateAsync(user.Id, ct))
         {
             family.Revoke(SessionRevokeReason.AccountDeactivated, now);

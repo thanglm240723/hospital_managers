@@ -140,4 +140,31 @@ public class UsersAdminTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal("last_admin", (await JsonAsync(response)).GetProperty("code").GetString());
     }
+
+    /// Bảo vệ Round-1 fix: admin1 và admin2 (2 admin đang hoạt động duy nhất) cùng khoá lẫn nhau
+    /// đồng thời. Nếu guard không tuần tự hoá (pg_advisory_xact_lock), cả hai có thể cùng đếm thấy
+    /// ≥ 1 admin khác và cùng đi qua, xoá sạch admin — vi phạm bất biến Spec §4.2.
+    [Fact]
+    public async Task Deactivate_TwoLastActiveAdminsConcurrently_ExactlyOneSucceedsOtherGetsLastAdmin409()
+    {
+        var admin1Id = await TestData.QueryAsync(_factory,
+            db => db.Users.Where(u => u.Email == _factory.AdminEmail).Select(u => u.Id).SingleAsync());
+        var admin2Email = TestData.NewEmail("admin2");
+        var admin2Id = await TestData.CreateUserAsync(_factory, admin2Email, TestData.DefaultPassword, false, true, SystemRoles.Admin);
+        var admin2 = new AuthTestClient(_factory.CreateHttpsClient());
+        (await admin2.LoginAsync(admin2Email, TestData.DefaultPassword)).EnsureSuccessStatusCode();
+
+        var responses = await Task.WhenAll(
+            _admin.SendAsync(HttpMethod.Post, $"/api/v1/users/{admin2Id}/deactivate"),
+            admin2.SendAsync(HttpMethod.Post, $"/api/v1/users/{admin1Id}/deactivate"));
+
+        Assert.Single(responses, r => r.StatusCode == HttpStatusCode.NoContent);
+        var conflict = Assert.Single(responses, r => r.StatusCode == HttpStatusCode.Conflict);
+        Assert.Equal("last_admin", (await JsonAsync(conflict)).GetProperty("code").GetString());
+
+        var activeAdminCount = await TestData.QueryAsync(_factory, db => db.Users
+            .Where(u => (u.Id == admin1Id || u.Id == admin2Id) && u.IsActive)
+            .CountAsync());
+        Assert.Equal(1, activeAdminCount);
+    }
 }
