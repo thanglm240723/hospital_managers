@@ -43,15 +43,19 @@ public sealed class DeactivateUserCommandHandler : IRequestHandler<DeactivateUse
         if (request.UserId == actorId)
             throw new ConflictException(ErrorCodes.SelfActionForbidden, "Không thể tự khoá tài khoản của chính mình.");
 
+        var adminRole = await AdminSafety.GetAdminRoleAsync(_roles, ct);
+        var now = _time.GetUtcNow();
+
+        // Luôn mở transaction và lấy khoá tư vấn VÔ ĐIỀU KIỆN trước khi nạp user, rồi mới nạp user và
+        // quyết định từ entity nạp SAU khoá. Nếu nạp user trước khi mở transaction/lấy khoá, một request
+        // khác có thể vừa commit đổi trạng thái IsActive/role admin ngay trước đó — guard sẽ dùng dữ liệu
+        // cũ và bỏ qua kiểm tra dù bất biến "còn ≥ 1 admin đang hoạt động" đang bị đe doạ (xem AdminSafety).
+        await using var transaction = await _unitOfWork.BeginTransactionAsync(ct);
+        await _users.AcquireAdminSafetyLockAsync(ct);
         var user = await _users.GetWithAccessAsync(request.UserId, ct)
                    ?? throw new NotFoundException($"User '{request.UserId}' was not found.");
         if (!user.IsActive) return;
-        var adminRole = await AdminSafety.GetAdminRoleAsync(_roles, ct);
 
-        var now = _time.GetUtcNow();
-        await using var transaction = await _unitOfWork.BeginTransactionAsync(ct);
-        // Phải nằm trong transaction: khoá tư vấn tự nhả khi commit/rollback, tuần tự hoá với mọi
-        // request khác cùng đụng bất biến "còn ≥ 1 admin" (xem AdminSafety).
         await AdminSafety.EnsureNotLastActiveAdminAsync(_users, adminRole.Id, user, ct);
         foreach (var family in await _sessions.GetActiveByUserForUpdateAsync(user.Id, ct))
         {
