@@ -46,3 +46,6 @@ BenchmarkDotNet.Artifacts/
 *.log
 *.vspscc
 *.vssscc
+
+## Application logs
+logs/

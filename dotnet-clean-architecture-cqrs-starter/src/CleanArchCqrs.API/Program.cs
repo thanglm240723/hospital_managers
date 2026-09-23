@@ -1,4 +1,5 @@
 using CleanArchCqrs.API.Errors;
+using CleanArchCqrs.API.Logging;
 using CleanArchCqrs.API.Middleware;
 using CleanArchCqrs.API.Services;
 using CleanArchCqrs.Application.Common.Exceptions;
@@ -27,7 +28,8 @@ public class Program
 
         builder.Host.UseSerilog((context, services, configuration) => configuration
             .ReadFrom.Configuration(context.Configuration)
-            .ReadFrom.Services(services));
+            .ReadFrom.Services(services)
+            .Destructure.With<SensitiveDataDestructuringPolicy>());
 
         // Add services
         builder.Services.AddControllers()
