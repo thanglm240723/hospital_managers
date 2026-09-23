@@ -1,12 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { BrowserRouter, Switch, Route } from 'react-router-dom';
+import { Switch, Route } from 'react-router-dom';
 
 import { Provider } from 'react-redux';
 import thunk from 'redux-thunk';
 import createHistory from 'history/createBrowserHistory';
 import { applyMiddleware, compose, createStore } from 'redux';
-import { connectRouter, routerMiddleware } from 'connected-react-router';
+import { ConnectedRouter, connectRouter, routerMiddleware } from 'connected-react-router';
 
 import getMuiTheme from 'material-ui/styles/getMuiTheme';
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
@@ -51,11 +51,12 @@ startAuthSync();
 startRefreshScheduler(() => store.dispatch(expireSession()));
 store.dispatch(bootAuth());
 
+// TODO: replace with the real layout App from the FE business plans once it exists.
 const App = () => <div className="c-panel">HMS</div>;
 
 const ReactApp = () => (
-  <BrowserRouter>
-    <Provider store={store}>
+  <Provider store={store}>
+    <ConnectedRouter history={history}>
       <MuiThemeProvider muiTheme={getMuiTheme()}>
         <React.Fragment>
           <Loading />
@@ -66,8 +67,8 @@ const ReactApp = () => (
           </Switch>
         </React.Fragment>
       </MuiThemeProvider>
-    </Provider>
-  </BrowserRouter>
+    </ConnectedRouter>
+  </Provider>
 );
 
 ReactDOM.render(<ReactApp />, document.getElementById('root'));
