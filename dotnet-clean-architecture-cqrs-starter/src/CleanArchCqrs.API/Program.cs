@@ -6,6 +6,7 @@ using CleanArchCqrs.Application.Common.Exceptions;
 using CleanArchCqrs.Application.Common.Interfaces;
 using CleanArchCqrs.Application.DependencyInjection;
 using CleanArchCqrs.Infrastructure.DependencyInjection;
+using CleanArchCqrs.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
@@ -67,6 +68,8 @@ public class Program
         builder.Services.AddInfrastructureServices(builder.Configuration);
         
         var app = builder.Build();
+
+        await DbInitializer.InitializeAsync(app.Services);
 
         // Configure pipeline
         if (app.Environment.IsDevelopment())

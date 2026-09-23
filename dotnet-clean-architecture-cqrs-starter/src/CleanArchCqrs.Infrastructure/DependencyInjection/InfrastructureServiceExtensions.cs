@@ -5,11 +5,13 @@ using CleanArchCqrs.Domain.Identity.Sessions;
 using CleanArchCqrs.Infrastructure.HealthChecks;
 using CleanArchCqrs.Infrastructure.Persistence;
 using CleanArchCqrs.Infrastructure.Persistence.Interceptors;
+using CleanArchCqrs.Infrastructure.Persistence.Seed;
 using CleanArchCqrs.Infrastructure.Repositories;
 using CleanArchCqrs.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using StackExchange.Redis;
 
@@ -37,6 +39,10 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<ITokenService, JwtTokenService>();
         services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
+
+        services.TryAddSingleton(TimeProvider.System);
+        services.Configure<SeedOptions>(configuration.GetSection("Seed"));
+        services.AddScoped<IdentitySeeder>();
 
         services.AddSingleton<IConnectionMultiplexer>(_ =>
         {
