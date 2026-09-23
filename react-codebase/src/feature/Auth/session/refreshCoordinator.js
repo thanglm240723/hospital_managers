@@ -1,6 +1,6 @@
 import { refresh as refreshRequest } from '../api/authClient';
 import {
-  getAccessToken, getExpiresAt, setAccessToken, clearAccessToken,
+  getAccessToken, getExpiresAt, setAccessToken, clearAccessToken, subscribe,
 } from './tokenStore';
 
 // Server dùng strict reuse (Đặc tả kỹ thuật §4.3): hai request refresh cùng một cookie ⇒ cả phiên bị thu hồi.
@@ -20,6 +20,17 @@ const NEED_TOKEN_TIMEOUT_MS = 1000;
 let inFlight = null;
 let channel = null;
 const remoteLogoutListeners = new Set();
+
+// Fix round 2: the generation (see GEN_KEY) at which THIS tab's current in-memory token was
+// obtained — updated whenever the token changes for any reason (login, our own successful
+// refresh, or receiving another tab's broadcast). Comparing this remembered value to a fresh
+// localStorage read *inside* the lock — instead of a `genAtStart` snapshot taken when
+// refreshAccessToken() was called — closes the residual window where a tab starts a refresh
+// call *after* the winner already wrote the counter and released the lock, but *before* that
+// tab has processed the winner's `token` broadcast: such a call would otherwise read the
+// already-bumped counter as its own baseline, see no mismatch, and resend the consumed cookie.
+let myTokenGen = null;
+subscribe((current) => { myTokenGen = current ? readGen() : null; });
 
 // localStorage access is best-effort: if it throws (privacy mode, storage disabled, quota) or is
 // absent, we fall back to the pre-fix behaviour (rely solely on the in-memory token check).
@@ -78,16 +89,18 @@ function isFreshTokenFromElsewhere(tokenAtStart) {
 
 // Ask other tabs for the token they already hold, with a short timeout. Used only when the
 // generation counter proves another tab already refreshed but its broadcast has not (yet)
-// updated our in-memory token store.
-function waitForTokenFromOtherTabs() {
+// updated our in-memory token store. Only accepts a token that is actually NEW and fresh
+// relative to tokenAtStart — during a proactive refresh (or a 401 retry) the OLD token is still
+// sitting in memory, and returning it immediately would make the caller retry against a token
+// that is about to (or already did) expire, without ever rescheduling the proactive timer.
+function waitForTokenFromOtherTabs(tokenAtStart) {
   const ch = getChannel();
-  if (!ch) return Promise.resolve(getAccessToken());
+  if (!ch) return Promise.resolve(null);
   ch.postMessage({ type: 'need-token' });
   return new Promise((resolve) => {
     const deadline = Date.now() + NEED_TOKEN_TIMEOUT_MS;
     const poll = () => {
-      const token = getAccessToken();
-      if (token) { resolve(token); return; }
+      if (isFreshTokenFromElsewhere(tokenAtStart)) { resolve(getAccessToken()); return; }
       if (Date.now() >= deadline) { resolve(null); return; }
       setTimeout(poll, 20);
     };
@@ -98,19 +111,20 @@ function waitForTokenFromOtherTabs() {
 export function refreshAccessToken() {
   if (inFlight) return inFlight;
   const tokenAtStart = getAccessToken();
-  const genAtStart = readGen();
 
   inFlight = runExclusive(async () => {
     if (isFreshTokenFromElsewhere(tokenAtStart)) return getAccessToken();
 
-    // Re-read the generation counter now that we hold the lock (or ran synchronously without
-    // one). A change here — even without a delivered broadcast — means another tab already
-    // consumed the refresh cookie while we were waiting.
+    // Compare a fresh in-lock read of the counter to the generation OUR current token is known
+    // to belong to (myTokenGen), not a snapshot taken when refreshAccessToken() was called. A
+    // gen we don't yet know about (myTokenGen === null) means we have no baseline — e.g. a cold
+    // tab that has never held a coordinator-tracked token — so we cannot conclude another tab
+    // already refreshed and must attempt the network call ourselves.
     const genInsideLock = readGen();
-    const otherTabAlreadyRefreshed = genAtStart !== null && genInsideLock !== null && genInsideLock !== genAtStart;
+    const otherTabAlreadyRefreshed = genInsideLock !== null && myTokenGen !== null && genInsideLock > myTokenGen;
 
     if (otherTabAlreadyRefreshed) {
-      const token = await waitForTokenFromOtherTabs();
+      const token = await waitForTokenFromOtherTabs(tokenAtStart);
       if (token) return token;
       // No token showed up in time: do NOT resend the already-used cookie (strict reuse would
       // revoke the whole family). Fail the refresh and let the caller treat it like a 401.
@@ -118,8 +132,11 @@ export function refreshAccessToken() {
     }
 
     const data = await refreshRequest();
-    setAccessToken(data.accessToken, data.expiresAtUtc);
+    // Write the counter BEFORE setting the token: setAccessToken synchronously notifies our own
+    // subscribe listener above, which re-reads the counter into myTokenGen — it must already
+    // reflect this refresh's new generation by then.
     if (genInsideLock !== null) writeGen(genInsideLock + 1);
+    setAccessToken(data.accessToken, data.expiresAtUtc);
     const ch = getChannel();
     if (ch) ch.postMessage({ type: 'token', accessToken: data.accessToken, expiresAtUtc: data.expiresAtUtc });
     return data.accessToken;

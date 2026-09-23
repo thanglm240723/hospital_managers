@@ -55,14 +55,56 @@ it('does not call the network when another tab refreshed while we waited for the
   }
 });
 
-describe('cross-tab generation counter (fix round 1)', () => {
+describe('cross-tab generation counter (fix rounds 1 & 2)', () => {
+  // refreshCoordinator caches its BroadcastChannel instance the first time it is successfully
+  // created and never re-checks `typeof BroadcastChannel`, so swapping global.BroadcastChannel
+  // per-test (as fix round 1 did) silently leaves earlier tests' mock wired up. Instead, install
+  // ONE TestChannel for this whole describe block and let each test steer its "response" to a
+  // `need-token` message through the shared, per-test-reset `needTokenResponder` closure.
+  let needTokenResponder = null;
+
+  class TestChannel {
+    constructor() { this.onmessage = null; }
+
+    postMessage(message) {
+      if (message.type === 'need-token' && needTokenResponder) needTokenResponder();
+    }
+
+    close() {}
+  }
+
+  let originalBroadcastChannel;
+
+  beforeAll(() => {
+    originalBroadcastChannel = global.BroadcastChannel;
+    global.BroadcastChannel = TestChannel;
+  });
+
+  afterAll(() => {
+    global.BroadcastChannel = originalBroadcastChannel;
+  });
+
   beforeEach(() => {
+    needTokenResponder = null;
     try { localStorage.removeItem(GEN_KEY); } catch { /* ignore */ }
   });
 
   afterEach(() => {
     try { localStorage.removeItem(GEN_KEY); } catch { /* ignore */ }
   });
+
+  // Establishes this tab's own remembered token generation (myTokenGen) via a real, successful
+  // refresh — required as a baseline before the coordinator can ever conclude "another tab
+  // already refreshed" from a counter mismatch (fix round 2).
+  async function establishOwnGeneration(token) {
+    refresh.mockResolvedValueOnce({ accessToken: token, expiresAtUtc: inFifteenMinutes() });
+    await refreshAccessToken();
+    refresh.mockReset();
+  }
+
+  function bumpGenExternally() {
+    localStorage.setItem(GEN_KEY, String(Number(localStorage.getItem(GEN_KEY) || '0') + 1));
+  }
 
   it('increments the non-secret generation counter after each successful network refresh', async () => {
     refresh.mockResolvedValueOnce({ accessToken: 'g1', expiresAtUtc: inFifteenMinutes() });
@@ -75,16 +117,18 @@ describe('cross-tab generation counter (fix round 1)', () => {
     expect(localStorage.getItem(GEN_KEY)).toBe('2');
   });
 
-  it('fails instead of resending the cookie when the lock reveals another tab already refreshed and no token turns up', async () => {
-    localStorage.setItem(GEN_KEY, '5');
+  it('fails instead of resending the cookie when the counter moved ahead of our remembered generation and no token turns up', async () => {
+    await establishOwnGeneration('mine'); // myTokenGen now tracks generation 1
+    // needTokenResponder stays null: no other tab answers the need-token request.
+
     const original = navigator.locks;
     Object.defineProperty(navigator, 'locks', {
       configurable: true,
       value: {
         request: (name, task) => {
-          // Simulate another tab finishing its refresh (bumping the counter) while we waited
-          // for the lock, with no `token` broadcast delivered to this tab at all.
-          localStorage.setItem(GEN_KEY, '6');
+          // Another tab refreshes concurrently and bumps the counter while we wait for the
+          // lock; its broadcast never reaches us.
+          bumpGenExternally();
           return task();
         },
       },
@@ -92,7 +136,7 @@ describe('cross-tab generation counter (fix round 1)', () => {
 
     try {
       await expect(refreshAccessToken()).rejects.toThrow();
-      expect(refresh).not.toHaveBeenCalled();
+      expect(refresh).not.toHaveBeenCalled(); // no resend of the consumed cookie
     } finally {
       Object.defineProperty(navigator, 'locks', { configurable: true, value: original });
     }
@@ -103,30 +147,17 @@ describe('cross-tab generation counter (fix round 1)', () => {
     // winner's `token` BroadcastChannel message lands. The generation counter (already bumped by
     // the winner, read synchronously inside the lock) lets the waiter detect this and ask over
     // the channel instead of calling refresh() again with the already-consumed cookie.
-    class FakeChannel {
-      constructor() { this.onmessage = null; }
+    await establishOwnGeneration('mine'); // myTokenGen now tracks generation 1
+    needTokenResponder = () => setAccessToken('winner-token', inFifteenMinutes());
 
-      postMessage(message) {
-        if (message.type === 'need-token') {
-          // Answered as if the winner tab (or its late-arriving broadcast) responds.
-          setAccessToken('winner-token', inFifteenMinutes());
-        }
-      }
-
-      close() {}
-    }
-    const originalBroadcastChannel = global.BroadcastChannel;
-    global.BroadcastChannel = FakeChannel;
-
-    localStorage.setItem(GEN_KEY, '10');
     const original = navigator.locks;
     Object.defineProperty(navigator, 'locks', {
       configurable: true,
       value: {
         request: (name, task) => {
-          // Winner already incremented the generation counter, but its `token` broadcast has
-          // not reached this tab yet when the lock is granted to us.
-          localStorage.setItem(GEN_KEY, '11');
+          // Winner (a different tab) already incremented the generation counter, but its
+          // `token` broadcast has not reached this tab yet when the lock is granted to us.
+          bumpGenExternally();
           return task();
         },
       },
@@ -137,8 +168,55 @@ describe('cross-tab generation counter (fix round 1)', () => {
       expect(refresh).not.toHaveBeenCalled();
     } finally {
       Object.defineProperty(navigator, 'locks', { configurable: true, value: original });
-      global.BroadcastChannel = originalBroadcastChannel;
     }
+  });
+
+  it('waits for the actual new token instead of returning the stale one already in memory (proactive refresh)', async () => {
+    // Review's Important #1 (round 2): during a proactive refresh, the OLD token is still in
+    // memory when the need-token path is entered. waitForTokenFromOtherTabs must not resolve
+    // with that stale token — it has to keep waiting until a genuinely NEW, fresh token shows up.
+    await establishOwnGeneration('old-token'); // myTokenGen tracks gen 1, 'old-token' in memory
+    needTokenResponder = () => {
+      // The winner's answer arrives a little later than the request.
+      setTimeout(() => setAccessToken('new-token', inFifteenMinutes()), 30);
+    };
+
+    const original = navigator.locks;
+    Object.defineProperty(navigator, 'locks', {
+      configurable: true,
+      value: {
+        request: (name, task) => {
+          // Another tab refreshed concurrently and bumped the counter; its broadcast hasn't
+          // reached us yet, so 'old-token' is still what's in memory right now.
+          bumpGenExternally();
+          return task();
+        },
+      },
+    });
+
+    try {
+      await expect(refreshAccessToken()).resolves.toBe('new-token');
+      expect(refresh).not.toHaveBeenCalled(); // only the establishing call happened, no resend
+    } finally {
+      Object.defineProperty(navigator, 'locks', { configurable: true, value: original });
+    }
+  });
+
+  it('detects a counter bump after the lock is already free (broadcast not yet delivered) and asks other tabs instead of the network', async () => {
+    // Review's Important #2 (round 2 residual window): the winner writes the counter, broadcasts
+    // and releases the lock entirely before this tab even starts its own refreshAccessToken()
+    // call. There is no lock contention to reproduce — a stale call-time snapshot would be the
+    // whole bug. myTokenGen (the remembered generation, not a fresh read at call time) is what
+    // must catch this.
+    await establishOwnGeneration('old-token'); // myTokenGen tracks gen 1
+    needTokenResponder = () => setAccessToken('new-token', inFifteenMinutes());
+
+    // The other tab's whole refresh (network call, counter bump, broadcast, lock release)
+    // already happened; only its broadcast has not reached us.
+    bumpGenExternally();
+
+    await expect(refreshAccessToken()).resolves.toBe('new-token');
+    expect(refresh).not.toHaveBeenCalled(); // only the establishing call happened, no resend
   });
 
   it('falls back to a normal single network refresh when localStorage is unavailable', async () => {
