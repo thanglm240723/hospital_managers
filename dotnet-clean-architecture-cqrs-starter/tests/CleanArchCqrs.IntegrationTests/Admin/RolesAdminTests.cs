@@ -101,4 +101,32 @@ public class RolesAdminTests : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.NoContent, kept.StatusCode);
     }
+
+    /// I2 (final review): SetRolePermissions phải khoá tư vấn (chung với SetUserRoles) VÔ ĐIỀU KIỆN rồi mới
+    /// đọc danh sách holder, nếu không một SetUserRoles thêm user vào role đang chạy song song có thể lọt
+    /// khỏi vòng invalidate — user giữ quyền đã bị gỡ vô thời hạn vì perm:{uid} không có TTL. Chạy nhiều
+    /// vòng lặp với hai thứ tự khác nhau để tăng khả năng bắt được race nếu khoá không tuần tự hoá đúng.
+    [Fact]
+    public async Task SetRolePermissions_ConcurrentWithRoleAssignment_NeverLeavesStalePermission()
+    {
+        for (var i = 0; i < 8; i++)
+        {
+            var roleId = (await JsonAsync(await CreateRoleAsync($"catalog-viewer-{i}", Permissions.Catalog.Read))).GetProperty("id").GetGuid();
+            var email = TestData.NewEmail();
+            var memberId = await TestData.CreateUserAsync(_factory, email);
+            var member = new AuthTestClient(_factory.CreateHttpsClient());
+            (await member.LoginAsync(email, TestData.DefaultPassword)).EnsureSuccessStatusCode();
+
+            var responses = await Task.WhenAll(
+                _admin.SendAsync(HttpMethod.Put, $"/api/v1/users/{memberId}/roles", new { roleIds = new[] { roleId } }),
+                _admin.SendAsync(HttpMethod.Put, $"/api/v1/roles/{roleId}/permissions", new { permissionCodes = Array.Empty<string>() }));
+
+            Assert.All(responses, r => Assert.Equal(HttpStatusCode.NoContent, r.StatusCode));
+
+            // Trạng thái DB cuối cùng: member có role, role không còn quyền nào — perm:{uid} phải phản ánh
+            // đúng điều đó ngay lần đọc kế tiếp, không được kẹt lại quyền cũ do bỏ lỡ invalidate.
+            var permissionsResponse = await member.GetAsync("/api/v1/permissions");
+            Assert.Equal(HttpStatusCode.Forbidden, permissionsResponse.StatusCode);
+        }
+    }
 }
