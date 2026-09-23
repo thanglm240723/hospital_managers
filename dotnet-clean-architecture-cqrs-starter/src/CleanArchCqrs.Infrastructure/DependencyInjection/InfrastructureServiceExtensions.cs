@@ -41,6 +41,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<ISessionRepository, SessionRepository>();
         services.AddScoped<IIdentityReadService, IdentityReadService>();
+        services.AddScoped<ISessionValidationService, SessionValidationService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<ITokenService, JwtTokenService>();
         services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
