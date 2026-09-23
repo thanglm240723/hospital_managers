@@ -1,10 +1,13 @@
+using CleanArchCqrs.API.Errors;
 using CleanArchCqrs.API.Middleware;
 using CleanArchCqrs.API.Services;
+using CleanArchCqrs.Application.Common.Exceptions;
 using CleanArchCqrs.Application.Common.Interfaces;
 using CleanArchCqrs.Application.DependencyInjection;
 using CleanArchCqrs.Infrastructure.DependencyInjection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
@@ -33,6 +36,14 @@ public class Program
                 options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
                 options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
             });
+
+        builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+        builder.Services.AddProblemDetails();
+        builder.Services.Configure<ApiBehaviorOptions>(options =>
+            options.InvalidModelStateResponseFactory = context =>
+                ProblemResponseWriter.ToResult(context.HttpContext, 400, ErrorCodes.ValidationFailed, "Dữ liệu không hợp lệ.",
+                    context.ModelState.Where(e => e.Value?.Errors.Count > 0)
+                        .ToDictionary(e => e.Key, e => e.Value!.Errors.Select(x => x.ErrorMessage).ToArray())));
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(c =>
@@ -66,6 +77,7 @@ public class Program
         }
 
         app.UseMiddleware<CorrelationIdMiddleware>();
+        app.UseExceptionHandler();
         app.UseSerilogRequestLogging();
 
         app.UseHttpsRedirection();

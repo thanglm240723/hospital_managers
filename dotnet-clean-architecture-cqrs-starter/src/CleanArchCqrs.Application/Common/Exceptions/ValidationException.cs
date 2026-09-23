@@ -22,4 +22,10 @@ public class ValidationException : Exception
                 failureGroup => failureGroup.ToArray()
             );
     }
+
+    public ValidationException(string propertyName, string error)
+        : this()
+    {
+        Errors = new Dictionary<string, string[]> { [propertyName] = [error] };
+    }
 }
