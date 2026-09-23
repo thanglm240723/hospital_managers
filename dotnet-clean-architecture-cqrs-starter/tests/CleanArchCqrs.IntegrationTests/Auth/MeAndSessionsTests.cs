@@ -87,6 +87,23 @@ public class MeAndSessionsTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, (await laptop.RefreshAsync()).StatusCode);
     }
 
+    /// M4 (final review): thu hồi đúng phiên đang dùng phải xoá cookie __Host-rt/__Host-csrf giống logout-all,
+    /// nếu không FE còn giữ cookie vô dụng và có thể gửi lại, kích hoạt phát hiện tái sử dụng (reuse).
+    [Fact]
+    public async Task RevokeSession_OwnCurrentSession_ClearsCookies()
+    {
+        var email = TestData.NewEmail();
+        await TestData.CreateUserAsync(_factory, email);
+        var client = await LoginAsync(email);
+        var currentFid = new JsonWebTokenHandler().ReadJsonWebToken(client.AccessToken).GetClaim("fid").Value;
+
+        var response = await client.SendAsync(HttpMethod.Post, $"/api/v1/auth/sessions/{currentFid}/revoke");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Null(client.RefreshToken);
+        Assert.Null(client.CsrfToken);
+    }
+
     [Fact]
     public async Task RevokeSession_SomeoneElsesSession_Returns404()
     {

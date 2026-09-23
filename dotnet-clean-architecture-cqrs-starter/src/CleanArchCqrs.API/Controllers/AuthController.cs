@@ -87,6 +87,10 @@ public sealed class AuthController : ControllerBase
     public async Task<IActionResult> RevokeSession(Guid id, CancellationToken ct)
     {
         await _mediator.Send(new RevokeSessionCommand(id), ct);
+        // Tự thu hồi đúng phiên đang dùng: FE còn giữ __Host-rt/__Host-csrf của phiên vừa bị thu hồi — cookie
+        // đó vô dụng và sẽ kích hoạt phát hiện tái sử dụng (reuse) nếu lỡ gửi lại. Xoá giống logout-all.
+        if (Guid.TryParse(User.FindFirst("fid")?.Value, out var currentFamilyId) && currentFamilyId == id)
+            _cookies.Clear(Response);
         return NoContent();
     }
 

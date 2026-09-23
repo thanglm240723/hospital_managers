@@ -12,10 +12,23 @@ public static class GatewayAuthExtensions
 {
     private const string DependencyUnavailableItem = "gateway.auth.dependency-unavailable";
 
+    private const int MinKeyLength = 32;
+
     public static IServiceCollection AddGatewayAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
-        services.Configure<GatewayJwtOptions>(configuration.GetSection("Jwt"));
-        services.Configure<IdentityServiceOptions>(configuration.GetSection("Identity"));
+        // ValidateOnStart: khoá/URL rỗng trước đây chỉ lộ ra ở request đầu tiên (500 hoặc lỗi kết nối).
+        // Thất bại ngay khi Gateway khởi động an toàn hơn để lọt ra production.
+        services.AddOptions<GatewayJwtOptions>()
+            .Bind(configuration.GetSection("Jwt"))
+            .Validate(o => !string.IsNullOrWhiteSpace(o.SigningKey) && o.SigningKey.Length >= MinKeyLength,
+                $"Jwt:SigningKey must be at least {MinKeyLength} characters.")
+            .ValidateOnStart();
+        services.AddOptions<IdentityServiceOptions>()
+            .Bind(configuration.GetSection("Identity"))
+            .Validate(o => !string.IsNullOrWhiteSpace(o.InternalBaseUrl) && Uri.IsWellFormedUriString(o.InternalBaseUrl, UriKind.Absolute),
+                "Identity:InternalBaseUrl must be an absolute URL.")
+            .Validate(o => !string.IsNullOrWhiteSpace(o.InternalApiKey), "Identity:InternalApiKey must not be empty.")
+            .ValidateOnStart();
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IConnectionMultiplexer>(_ =>
         {

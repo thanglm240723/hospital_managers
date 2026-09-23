@@ -114,6 +114,24 @@ public class RefreshAndLogoutTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    /// M3 (final review): một mục rỗng trong Auth:AllowedOrigins (vd. cấu hình rỗng "") không được khớp
+    /// Origin rỗng của một request KHÔNG gửi header Origin — nếu không, request đó lọt qua kiểm tra CSRF.
+    [Fact]
+    public async Task Refresh_EmptyAllowedOriginsEntry_NoOriginHeaderStillRejected()
+    {
+        await using var factory = await ApiFactory.CreateAsync(_containers,
+            new Dictionary<string, string?> { ["Auth:AllowedOrigins:1"] = "" });
+        var email = TestData.NewEmail();
+        await TestData.CreateUserAsync(factory, email);
+        var client = new AuthTestClient(factory.CreateHttpsClient());
+        (await client.LoginAsync(email, TestData.DefaultPassword)).EnsureSuccessStatusCode();
+
+        var response = await client.SendAsync(HttpMethod.Post, "/api/v1/auth/refresh", bearer: false, origin: null);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("csrf_failed", await CodeAsync(response));
+    }
+
     [Fact]
     public async Task Refresh_NoCookie_Returns401()
     {

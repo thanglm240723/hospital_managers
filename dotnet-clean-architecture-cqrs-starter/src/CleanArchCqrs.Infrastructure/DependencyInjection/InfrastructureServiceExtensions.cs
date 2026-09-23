@@ -16,6 +16,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace CleanArchCqrs.Infrastructure.DependencyInjection;
@@ -25,6 +26,9 @@ namespace CleanArchCqrs.Infrastructure.DependencyInjection;
 /// </summary>
 public static class InfrastructureServiceExtensions
 {
+    /// Trùng CsrfTokenService.MinKeyLength — khoá HMAC dưới ngưỡng này coi như không cấu hình.
+    private const int MinKeyLength = 32;
+
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped<AuditSaveChangesInterceptor>();
@@ -44,9 +48,25 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<ISessionValidationService, SessionValidationService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<ITokenService, JwtTokenService>();
-        services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
+        // ValidateOnStart: một SigningKey rỗng/ngắn trước đây chỉ lộ ra ở request đầu tiên (500). Thất bại
+        // ngay khi host khởi động thì an toàn hơn nhiều so với để lọt ra production rồi mới phát hiện.
+        services.AddOptions<JwtOptions>()
+            .Bind(configuration.GetSection("Jwt"))
+            .Validate(o => !string.IsNullOrWhiteSpace(o.SigningKey) && o.SigningKey.Length >= MinKeyLength,
+                $"Jwt:SigningKey must be at least {MinKeyLength} characters.")
+            .ValidateOnStart();
 
-        services.Configure<AuthOptions>(configuration.GetSection("Auth"));
+        // Mục rỗng trong AllowedOrigins (vd. cấu hình rỗng "") sẽ khớp Origin rỗng của một request KHÔNG
+        // gửi header Origin — cho request đó lọt qua kiểm tra CSRF. Lọc bỏ ngay khi bind (PostConfigure chạy
+        // trước Validate), trước khi bất kỳ filter nào đọc options.
+        services.AddOptions<AuthOptions>()
+            .Bind(configuration.GetSection("Auth"))
+            .Validate(o => !string.IsNullOrWhiteSpace(o.CsrfKey) && o.CsrfKey.Length >= MinKeyLength,
+                $"Auth:CsrfKey must be at least {MinKeyLength} characters.")
+            .Validate(o => !string.IsNullOrWhiteSpace(o.InternalApiKey), "Auth:InternalApiKey must not be empty.")
+            .ValidateOnStart();
+        services.PostConfigure<AuthOptions>(o =>
+            o.AllowedOrigins = o.AllowedOrigins.Where(origin => !string.IsNullOrWhiteSpace(origin)).ToArray());
         services.AddSingleton<IRefreshTokenGenerator, RefreshTokenGenerator>();
         services.AddSingleton<ICsrfTokenService, CsrfTokenService>();
 
