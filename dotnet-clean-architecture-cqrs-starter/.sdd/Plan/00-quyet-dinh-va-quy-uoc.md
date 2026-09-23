@@ -16,12 +16,13 @@ Muốn khác thì sửa ở đây trước rồi mới code — các file sau đ
 | Kiểu thời gian | **`DateTimeOffset`**, lưu UTC | Theo code đã viết. FE đổi sang giờ VN khi hiển thị |
 | Khoá chính | `Guid` sinh bằng `Guid.CreateVersion7()` | Tuần tự theo thời gian, không phân mảnh index như `NewGuid()` |
 | Định danh đăng nhập | **Email** | `User` không có `UserName` |
-| Phát hành + validate token | **CleanArchCqrs.API** | Gateway không có tầng auth, chỉ forward header |
-| Kiểu token | JWT HS256, access token 60 phút | Refresh token để backlog |
-| Phân quyền | Role-based, 1 user 1 role (`[Authorize(Roles = ...)]`) | Đủ cho nghiệp vụ bệnh viện |
+| Phát hành token | **CleanArchCqrs.API** (module IdentityAccess) | Cần DB user + transaction rotation |
+| Xác thực mỗi request | **Gateway** validate JWT + phiên (Redis → BE); **API validate lại** chữ ký | Chặn sớm; BE không tin header từ client — xem spec 2026-09-23 |
+| Kiểu token | JWT HS256 access **15 phút** (RAM trình duyệt) + refresh token rotation (cookie `__Host-rt`), phiên tuyệt đối 7 ngày | Theo Đặc tả kỹ thuật §4 |
+| Phân quyền | **Permission-based**: nhiều role/user + quyền lẻ cấp thêm, `[HasPermission(...)]`, cache Redis không TTL | Spec 2026-09-23 |
 | Kiến trúc service | **Monolith 1 API**, gateway đã sẵn 6 cluster | Tách sau chỉ đổi `Address` trong `appsettings.json` |
 | Xoá dữ liệu | **Soft delete** (`IsDeleted`) cho hồ sơ nghiệp vụ | Hồ sơ y tế không được xoá cứng |
-| Audit đăng nhập | Bảng `UserLoginHistory` riêng, ghi **mọi** lần thử — kể cả thất bại — không khoá theo refresh token | Refresh token chưa làm (backlog); giá trị audit lớn nhất nằm ở các lần thất bại, mà thất bại thì không có token nào để gắn vào |
+| Audit truy cập/bảo mật | Bảng `AuditRecords` (login, refresh reuse, logout, 403, đổi quyền…) — **thay** `UserLoginHistory` | Theo Đặc tả kỹ thuật §3.3 |
 | Audit CRUD | 1 bảng `AuditLog` dùng chung toàn hệ thống, ghi tự động qua `AppDbContext.SaveChangesAsync` | Tránh N bảng lịch sử trùng cấu trúc theo từng module, tránh quên audit khi thêm module mới |
 
 ⚠ **`User` không có `IsDeleted`** — dùng `IsActive` để khoá tài khoản là đủ. Soft delete chỉ áp cho

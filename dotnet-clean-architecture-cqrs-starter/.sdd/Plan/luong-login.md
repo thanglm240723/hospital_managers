@@ -1,5 +1,8 @@
 # Luồng Login — plan đầy đủ từ Domain đến API
 
+> ⚠ **ĐÃ BỊ THAY THẾ (2026-09-23)** bởi `docs/superpowers/plans/2026-09-23-auth-permission-redesign/spec.md`
+> và các file plan cùng thư mục. Giữ lại chỉ để tra cứu lịch sử — **không làm theo file này nữa.**
+
 File này tự chứa toàn bộ việc cần làm để `POST /api/auth/login` chạy được end-to-end.
 Quy ước chung (đặt tên, chiều phụ thuộc, URL) xem [00-quyet-dinh-va-quy-uoc.md](00-quyet-dinh-va-quy-uoc.md).
 

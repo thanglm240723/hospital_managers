@@ -1,5 +1,8 @@
 # 07 — Frontend: đăng nhập & phân quyền
 
+> ⚠ **ĐÃ BỊ THAY THẾ (2026-09-23)** bởi `docs/superpowers/plans/2026-09-23-auth-permission-redesign/spec.md`
+> và các file plan cùng thư mục. Giữ lại chỉ để tra cứu lịch sử — **không làm theo file này nữa.**
+
 ## Bước 7.1 — Feature Auth
 
 **→ Tạo `src/feature/Auth/`** theo đúng bộ file chuẩn của codebase:

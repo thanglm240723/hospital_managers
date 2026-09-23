@@ -6,6 +6,6 @@ namespace CleanArchCqrs.Application.Auth.Models
     {
         public string? AccessToken { get; set; }
         public DateTimeOffset ExpiresAtUtc { get; set; }
-        public UserDto UserDto { get; set; }
+        public UserDto UserDto { get; set; } = default!;
     }
 }
