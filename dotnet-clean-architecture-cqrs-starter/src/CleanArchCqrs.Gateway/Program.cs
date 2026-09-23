@@ -1,3 +1,4 @@
+using CleanArchCqrs.Gateway.Auth;
 using CleanArchCqrs.Gateway.DependencyInjection;
 using CleanArchCqrs.Gateway.Middleware;
 using Serilog;
@@ -5,9 +6,8 @@ using Serilog;
 namespace CleanArchCqrs.Gateway;
 
 /// <summary>
-/// API Gateway startup - the single public entry point in front of the backend services.
-/// This layer only routes: authentication and authorization are handled by the backend
-/// services themselves. Business logic never belongs here.
+/// API Gateway — điểm vào công khai duy nhất. Xác thực JWT + phiên (Redis → API nội bộ) rồi mới định tuyến.
+/// Phân quyền và nghiệp vụ nằm ở backend.
 /// </summary>
 public class Program
 {
@@ -19,13 +19,16 @@ public class Program
             .ReadFrom.Configuration(context.Configuration)
             .ReadFrom.Services(services));
 
-        // Routes and clusters are declarative - see the "ReverseProxy" section in appsettings.json.
         builder.Services.AddGatewayReverseProxy(builder.Configuration);
+        builder.Services.AddGatewayAuthentication(builder.Configuration);
 
         var app = builder.Build();
 
         app.UseMiddleware<CorrelationIdMiddleware>();
+        app.UseMiddleware<StripInternalHeadersMiddleware>();
         app.UseSerilogRequestLogging();
+        app.UseAuthentication();
+        app.UseAuthorization();
 
         app.MapReverseProxy();
 

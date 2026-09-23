@@ -7,8 +7,7 @@ public static class GatewayServiceExtensions
 {
     /// <summary>
     /// Registers YARP with the routes and clusters declared in the "ReverseProxy" configuration section.
-    /// Incoming headers - including Authorization - are forwarded to the destination as-is,
-    /// so each backend service validates the token itself.
+    /// The Authorization header is forwarded unchanged; the API re-validates the JWT signature as defence in depth.
     /// </summary>
     public static IServiceCollection AddGatewayReverseProxy(this IServiceCollection services, IConfiguration configuration)
     {

@@ -2,11 +2,11 @@
 
 API Gateway (YARP reverse proxy) — điểm vào công khai duy nhất đứng trước các backend service.
 
-Tầng này **chỉ định tuyến**. Không business logic, không xác thực. YARP đọc `Routes` / `Clusters`
-từ `appsettings.json`, không hardcode trong code C#.
-
-Header của request được forward nguyên vẹn xuống destination (mặc định của YARP), bao gồm
-`Authorization` — nên **backend tự phát hành và tự validate token**.
+Tầng này **xác thực** rồi mới định tuyến: validate JWT HS256 (cùng khoá với API) và kiểm tra phiên
+`session:{fid}` trong Redis — không có key hoặc Redis lỗi thì hỏi `POST /internal/sessions/validate` của API.
+Route public (không cần token): `POST /api/v1/auth/login|refresh|logout`. Mọi route khác phải có token hợp lệ.
+**Phân quyền** vẫn do API quyết định. Header `X-Internal-*` do client gửi bị xoá trước khi forward.
+Chạy API bằng profile `http` (Gateway gọi `http://localhost:5289`).
 
 ## Chạy
 
@@ -29,7 +29,11 @@ Client chỉ gọi vào gateway (`:5100`). Sau khi có gateway, các API service
 
 | Route | Path | Cluster |
 |---|---|---|
-| `auth-route` | `/api/auth/{**catch-all}` | `identity-cluster` |
+| `auth-login-route`, `auth-refresh-route`, `auth-logout-route` | `POST /api/v1/auth/login\|refresh\|logout` (public) | `identity-cluster` |
+| `auth-route` | `/api/v1/auth/{**catch-all}` | `identity-cluster` |
+| `users-route` | `/api/v1/users/{**catch-all}` | `identity-cluster` |
+| `roles-route` | `/api/v1/roles/{**catch-all}` | `identity-cluster` |
+| `permissions-route` | `/api/v1/permissions/{**catch-all}` | `identity-cluster` |
 | `patients-route` | `/api/patients/{**catch-all}` | `patients-cluster` |
 | `doctors-route` | `/api/doctors/{**catch-all}` | `doctors-cluster` |
 | `appointments-route` | `/api/appointments/{**catch-all}` | `appointments-cluster` |
