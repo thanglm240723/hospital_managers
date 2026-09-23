@@ -8,18 +8,12 @@ public sealed class CurrentUser : ICurrentUser
 
     public CurrentUser(IHttpContextAccessor httpContextAccessor) => _httpContextAccessor = httpContextAccessor;
 
-    public Guid? UserId
-    {
-        get
-        {
-            var value = _httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value;
-            return Guid.TryParse(value, out var id) ? id : null;
-        }
-    }
+    public Guid? UserId => GuidClaim("sub");
 
-    public string? Email => _httpContextAccessor.HttpContext?.User?.FindFirst("email")?.Value;
-
-    public string? Role => _httpContextAccessor.HttpContext?.User?.FindFirst("role")?.Value;
+    public Guid? SessionFamilyId => GuidClaim("fid");
 
     public bool IsAuthenticated => _httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated ?? false;
+
+    private Guid? GuidClaim(string type)
+        => Guid.TryParse(_httpContextAccessor.HttpContext?.User?.FindFirst(type)?.Value, out var id) ? id : null;
 }

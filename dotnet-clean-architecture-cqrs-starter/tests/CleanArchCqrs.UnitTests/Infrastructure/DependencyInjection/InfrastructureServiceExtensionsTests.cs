@@ -12,8 +12,7 @@ namespace CleanArchCqrs.UnitTests.Infrastructure.DependencyInjection;
 file sealed class FakeCurrentUser : ICurrentUser
 {
     public Guid? UserId => null;
-    public string? Email => null;
-    public string? Role => null;
+    public Guid? SessionFamilyId => null;
     public bool IsAuthenticated => false;
 }
 

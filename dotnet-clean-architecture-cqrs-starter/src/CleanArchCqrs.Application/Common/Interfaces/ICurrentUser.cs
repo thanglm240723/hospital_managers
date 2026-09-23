@@ -1,13 +1,11 @@
 namespace CleanArchCqrs.Application.Common.Interfaces
 {
     //⚠ Application cần biết "ai đang thao tác" nhưng **không được** `using Microsoft.AspNetCore.Http`.
-    //Application không nên lấy hết qua http mà chỉ lấy 1 số thông tin cần thiết về user đang thao tác.
+    //JWT chỉ mang định danh (sub, fid, sv) — role/permission lấy qua IPermissionService, không qua đây.
     public interface ICurrentUser
     {
         Guid? UserId { get; }
-        string? Email { get; }
-        string? Role { get; }
+        Guid? SessionFamilyId { get; }
         bool IsAuthenticated { get; }
-
     }
 }

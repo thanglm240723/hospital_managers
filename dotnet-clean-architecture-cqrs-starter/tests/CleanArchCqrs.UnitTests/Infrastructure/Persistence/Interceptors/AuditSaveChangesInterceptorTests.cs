@@ -10,8 +10,7 @@ namespace CleanArchCqrs.UnitTests.Infrastructure.Persistence.Interceptors;
 sealed class FakeCurrentUser : ICurrentUser
 {
     public required Guid? UserId { get; init; }
-    public string? Email => null;
-    public string? Role => null;
+    public Guid? SessionFamilyId => null;
     public bool IsAuthenticated => UserId is not null;
 }
 

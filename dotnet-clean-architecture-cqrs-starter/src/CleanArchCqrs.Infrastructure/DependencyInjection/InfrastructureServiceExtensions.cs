@@ -2,6 +2,7 @@ using CleanArchCqrs.Application.Common.Interfaces;
 using CleanArchCqrs.Domain.Common;
 using CleanArchCqrs.Domain.Identity;
 using CleanArchCqrs.Domain.Identity.Sessions;
+using CleanArchCqrs.Infrastructure.Auditing;
 using CleanArchCqrs.Infrastructure.Caching;
 using CleanArchCqrs.Infrastructure.HealthChecks;
 using CleanArchCqrs.Infrastructure.Persistence;
@@ -34,6 +35,7 @@ public static class InfrastructureServiceExtensions
         });
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<AppDbContext>());
+        services.AddScoped<IAuditRecorder, AuditRecorder>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<ISessionRepository, SessionRepository>();
