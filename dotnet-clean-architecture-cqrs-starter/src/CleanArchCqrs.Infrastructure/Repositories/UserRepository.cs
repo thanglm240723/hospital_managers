@@ -33,4 +33,17 @@ public sealed class UserRepository : IUserRepository
         var normalized = User.NormalizeEmail(email);
         return await _context.Users.AnyAsync(u => u.Email == normalized, ct);
     }
+
+    public async Task<User?> GetWithAccessAsync(Guid id, CancellationToken ct = default)
+        => await _context.Users
+            .Include(u => u.RoleAssignments)
+            .Include(u => u.PermissionGrants)
+            .SingleOrDefaultAsync(u => u.Id == id, ct);
+
+    public async Task<int> CountActiveUsersInRoleAsync(Guid roleId, Guid? excludingUserId, CancellationToken ct = default)
+        => await _context.Users.CountAsync(u =>
+            u.IsActive && u.Id != excludingUserId && u.RoleAssignments.Any(r => r.RoleId == roleId), ct);
+
+    public async Task<IReadOnlyList<Guid>> GetUserIdsInRoleAsync(Guid roleId, CancellationToken ct = default)
+        => await _context.Set<UserRole>().Where(r => r.RoleId == roleId).Select(r => r.UserId).ToListAsync(ct);
 }

@@ -12,5 +12,10 @@ namespace CleanArchCqrs.Domain.Identity
         //update trả void chứ ko phải task<User> vì ko cần trả về user
         void UpdateUser(User user);
         Task<bool> EmailExistsAsync(string email , CancellationToken ct = default);
+
+        /// Nạp user kèm RoleAssignments + PermissionGrants (tracking) để sửa quyền.
+        Task<User?> GetWithAccessAsync(Guid id, CancellationToken ct = default);
+        Task<int> CountActiveUsersInRoleAsync(Guid roleId, Guid? excludingUserId, CancellationToken ct = default);
+        Task<IReadOnlyList<Guid>> GetUserIdsInRoleAsync(Guid roleId, CancellationToken ct = default);
     }
 }

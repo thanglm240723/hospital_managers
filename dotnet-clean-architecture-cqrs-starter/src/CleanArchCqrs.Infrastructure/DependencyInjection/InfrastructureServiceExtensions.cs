@@ -1,6 +1,7 @@
 using CleanArchCqrs.Application.Common.Interfaces;
 using CleanArchCqrs.Domain.Common;
 using CleanArchCqrs.Domain.Identity;
+using CleanArchCqrs.Domain.Identity.Sessions;
 using CleanArchCqrs.Infrastructure.HealthChecks;
 using CleanArchCqrs.Infrastructure.Persistence;
 using CleanArchCqrs.Infrastructure.Persistence.Interceptors;
@@ -31,6 +32,8 @@ public static class InfrastructureServiceExtensions
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<AppDbContext>());
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IRoleRepository, RoleRepository>();
+        services.AddScoped<ISessionRepository, SessionRepository>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<ITokenService, JwtTokenService>();
         services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
