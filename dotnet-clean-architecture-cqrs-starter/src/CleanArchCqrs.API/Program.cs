@@ -69,6 +69,7 @@ public class Program
         builder.Services.AddScoped<IRequestContext, HttpRequestContext>();
         builder.Services.AddScoped<AuthCookieWriter>();
         builder.Services.AddApiAuthentication();
+        builder.Services.AddApiAuthorization();
 
         builder.Services.AddApplicationServices();
         builder.Services.AddInfrastructureServices(builder.Configuration);
@@ -101,7 +102,7 @@ public class Program
         app.UseMiddleware<UserLogContextMiddleware>();
         app.UseAuthorization();
         app.MapControllers();
-        app.MapHealthChecks("/health");
+        app.MapHealthChecks("/health").AllowAnonymous();
 
         await app.RunAsync();
     }
