@@ -11,7 +11,7 @@ import { connectRouter, routerMiddleware } from 'connected-react-router';
 import getMuiTheme from 'material-ui/styles/getMuiTheme';
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
 
-import { App, Login, Register, ForgotPassword, ResetPassword } from 'feature';
+import { Loading } from './feature';
 import combinedReducers from './reducer';
 import * as serviceWorker from './serviceWorker';
 
@@ -31,31 +31,25 @@ const composeEnhancers =
 const store = createStore(
   connectRouter(history)(combinedReducers),
   composeEnhancers(
-    applyMiddleware(routerMiddleware(history)),
-    applyMiddleware(middleware),
-    applyMiddleware(thunk),
-    // applyMiddleware(epicMiddleware),
+    applyMiddleware(middleware, thunk),
   ),
 );
 
-const ReactApp = () => {
-  console.log('app re-render app');
-  return (
-    <BrowserRouter>
-      <Provider store={store}>
-        <MuiThemeProvider muiTheme={getMuiTheme()}>
+const ReactApp = () => (
+  <BrowserRouter>
+    <Provider store={store}>
+      <MuiThemeProvider muiTheme={getMuiTheme()}>
+        <React.Fragment>
+          <Loading />
+          {/* Routes (Login, ChangePassword, guarded App) are added by the plan-06 auth tasks. */}
           <Switch>
-            <Route exact path="/login" component={Login} />
-            <Route exact path="/register" component={Register} />
-            <Route exact path="/forgot-password" component={ForgotPassword} />
-            <Route exact path="/reset-password" component={ResetPassword} />
-            <Route path="/" component={App} />
+            <Route path="/" render={() => <div className="c-panel">HMS</div>} />
           </Switch>
-        </MuiThemeProvider>
-      </Provider>
-    </BrowserRouter>
-  );
-};
+        </React.Fragment>
+      </MuiThemeProvider>
+    </Provider>
+  </BrowserRouter>
+);
 
 ReactDOM.render(<ReactApp />, document.getElementById('root'));
 

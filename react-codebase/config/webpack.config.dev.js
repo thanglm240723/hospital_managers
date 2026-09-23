@@ -60,7 +60,12 @@ const getStyleLoaders = (cssOptions, preProcessor) => {
     },
   ];
   if (preProcessor) {
-    loaders.push(require.resolve(preProcessor));
+    loaders.push(
+      preProcessor === 'sass-loader'
+        ? // dart-sass (package `sass`) replaces node-sass, which cannot build on Node 24.
+          { loader: require.resolve(preProcessor), options: { implementation: require('sass') } }
+        : require.resolve(preProcessor),
+    );
   }
   return loaders;
 };

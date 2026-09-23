@@ -82,7 +82,11 @@ module.exports = function(proxy, allowedHost) {
       disableDotRule: true,
     },
     public: allowedHost,
-    proxy,
+    // Same-origin proxy to the Gateway: the __Host-rt refresh cookie is host-only,
+    // so FE and API must share origin http://localhost:9000 in dev.
+    proxy: {
+      '/api': { target: 'http://localhost:5100', changeOrigin: true },
+    },
     before(app, server) {
       if (fs.existsSync(paths.proxySetup)) {
         // This registers user provided middleware for proxy reasons

@@ -87,6 +87,8 @@ const getStyleLoaders = (cssOptions, preProcessor) => {
       loader: require.resolve(preProcessor),
       options: {
         sourceMap: shouldUseSourceMap,
+        // dart-sass (package `sass`) replaces node-sass, which cannot build on Node 24.
+        ...(preProcessor === 'sass-loader' ? { implementation: require('sass') } : {}),
       },
     });
   }

@@ -1,0 +1,2 @@
+# ESLint enforces LF (linebreak-style); keep LF in the working tree even with core.autocrlf=true
+* text=auto eol=lf
