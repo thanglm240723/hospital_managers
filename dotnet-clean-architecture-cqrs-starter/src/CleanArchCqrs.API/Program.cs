@@ -18,7 +18,7 @@ namespace CleanArchCqrs.API;
 /// </summary>
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
 
@@ -71,7 +71,8 @@ public class Program
         app.UseHttpsRedirection();
         app.UseAuthorization();
         app.MapControllers();
+        app.MapHealthChecks("/health");
 
-        app.Run();
+        await app.RunAsync();
     }
 }
