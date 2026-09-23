@@ -1,7 +1,6 @@
 using System.Text;
 using CleanArchCqrs.Application.Common.Interfaces;
 using CleanArchCqrs.Application.Common.Models;
-using CleanArchCqrs.Domain.Identity;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
@@ -14,7 +13,7 @@ public sealed class JwtTokenService : ITokenService
 
     public JwtTokenService(IOptions<JwtOptions> options) => _options = options.Value;
 
-    public AccessToken CreateAccessToken(User user)
+    public AccessToken CreateAccessToken(Guid userId, Guid sessionFamilyId, int securityVersion)
     {
         var now = DateTimeOffset.UtcNow;
         var expires = now.AddMinutes(_options.AccessTokenMinutes);
@@ -31,10 +30,9 @@ public sealed class JwtTokenService : ITokenService
                 SecurityAlgorithms.HmacSha256),
             Claims = new Dictionary<string, object>
             {
-                [JwtRegisteredClaimNames.Sub] = user.Id.ToString(),
-                ["email"] = user.Email,
-                ["name"] = user.FullName,
-                ["role"] = user.Role,
+                [JwtRegisteredClaimNames.Sub] = userId.ToString(),
+                ["fid"] = sessionFamilyId.ToString(),
+                ["sv"] = securityVersion,
                 [JwtRegisteredClaimNames.Jti] = Guid.NewGuid().ToString()
             }
         };

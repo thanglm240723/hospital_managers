@@ -1,5 +1,4 @@
 using CleanArchCqrs.Domain.Common;
-using CleanArchCqrs.Domain.Constants;
 using CleanArchCqrs.Domain.Identity;
 using CleanArchCqrs.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -24,7 +23,7 @@ public class AppDbContextTests
     public async Task SaveChangesAsync_PersistsAddedUser()
     {
         using var context = CreateContext();
-        var user = User.Create("Nguyen Van A", "a@example.com", "hash", null, Roles.Admin);
+        var user = User.Create("Nguyen Van A", "a@example.com", "hash", null);
 
         context.Users.Add(user);
         var affected = await context.SaveChangesAsync();

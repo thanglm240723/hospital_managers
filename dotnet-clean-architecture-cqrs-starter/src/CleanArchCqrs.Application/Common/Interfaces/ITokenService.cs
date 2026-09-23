@@ -1,8 +1,9 @@
-using CleanArchCqrs.Domain.Identity;
 using CleanArchCqrs.Application.Common.Models;
+
 namespace CleanArchCqrs.Application.Common.Interfaces;
 
-    public interface ITokenService
+public interface ITokenService
 {
-    AccessToken CreateAccessToken(User user);
-}   
+    /// JWT chỉ mang định danh ổn định: sub, fid (SessionFamily), sv (SecurityVersion). Không role/permission.
+    AccessToken CreateAccessToken(Guid userId, Guid sessionFamilyId, int securityVersion);
+}

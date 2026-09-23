@@ -1,4 +1,3 @@
-using CleanArchCqrs.Domain.Constants;
 using CleanArchCqrs.Domain.Exceptions;
 using CleanArchCqrs.Domain.Identity;
 using CleanArchCqrs.Infrastructure.Persistence;
@@ -18,7 +17,7 @@ public class UserRepositoryTests
     public async Task GetByEmailAsync_NormalizesEmailBeforeLookup()
     {
         using var context = CreateContext();
-        var user = User.Create("Nguyen Van A", "MixedCase@Example.com", "hash", null, Roles.Admin);
+        var user = User.Create("Nguyen Van A", "MixedCase@Example.com", "hash", null);
         context.Users.Add(user);
         await context.SaveChangesAsync();
         var repo = new UserRepository(context);
@@ -42,7 +41,7 @@ public class UserRepositoryTests
     public async Task EmailExistsAsync_NormalizesEmailBeforeLookup()
     {
         using var context = CreateContext();
-        context.Users.Add(User.Create("Nguyen Van A", "exists@example.com", "hash", null, Roles.Admin));
+        context.Users.Add(User.Create("Nguyen Van A", "exists@example.com", "hash", null));
         await context.SaveChangesAsync();
         var repo = new UserRepository(context);
 
@@ -55,7 +54,7 @@ public class UserRepositoryTests
     {
         using var context = CreateContext();
         var repo = new UserRepository(context);
-        var user = User.Create("Nguyen Van A", "new@example.com", "hash", null, Roles.Admin);
+        var user = User.Create("Nguyen Van A", "new@example.com", "hash", null);
 
         await repo.AddUserAsync(user);
         await context.SaveChangesAsync();

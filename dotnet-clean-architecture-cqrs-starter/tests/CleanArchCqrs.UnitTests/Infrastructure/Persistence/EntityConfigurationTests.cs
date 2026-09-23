@@ -1,5 +1,4 @@
 using CleanArchCqrs.Domain.Common.Auditing;
-using CleanArchCqrs.Domain.Constants;
 using CleanArchCqrs.Domain.Identity;
 using CleanArchCqrs.Infrastructure.Persistence;
 using Microsoft.Data.Sqlite;
@@ -23,7 +22,7 @@ public class EntityConfigurationTests
         Assert.Equal(256, entityType.FindProperty(nameof(User.Email))!.GetMaxLength());
         Assert.Equal(200, entityType.FindProperty(nameof(User.FullName))!.GetMaxLength());
         Assert.Equal(500, entityType.FindProperty(nameof(User.PasswordHash))!.GetMaxLength());
-        Assert.Equal(50, entityType.FindProperty(nameof(User.Role))!.GetMaxLength());
+        Assert.NotNull(entityType.FindNavigation(nameof(User.RoleAssignments)));
         Assert.Null(entityType.FindProperty(nameof(User.DomainEvents)));
     }
 
@@ -40,10 +39,10 @@ public class EntityConfigurationTests
             .Options);
         context.Database.EnsureCreated();
 
-        context.Users.Add(User.Create("A", "dup@example.com", "hash1", null, Roles.Admin));
+        context.Users.Add(User.Create("A", "dup@example.com", "hash1", null));
         await context.SaveChangesAsync();
 
-        context.Users.Add(User.Create("B", "dup@example.com", "hash2", null, Roles.Admin));
+        context.Users.Add(User.Create("B", "dup@example.com", "hash2", null));
 
         await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
     }

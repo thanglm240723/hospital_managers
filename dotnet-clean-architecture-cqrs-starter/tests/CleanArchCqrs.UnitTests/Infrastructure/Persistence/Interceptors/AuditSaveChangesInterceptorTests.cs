@@ -1,6 +1,5 @@
 using CleanArchCqrs.Application.Common.Interfaces;
 using CleanArchCqrs.Domain.Common.Auditing;
-using CleanArchCqrs.Domain.Constants;
 using CleanArchCqrs.Domain.Identity;
 using CleanArchCqrs.Infrastructure.Persistence.Interceptors;
 using Microsoft.EntityFrameworkCore;
@@ -26,7 +25,11 @@ sealed class ProbeDbContext : DbContext
     // Real UserConfiguration (Task 6) does this too — without it, EF can't map
     // User.DomainEvents (an AggregateRoot computed property) and model building throws.
     protected override void OnModelCreating(ModelBuilder modelBuilder)
-        => modelBuilder.Entity<User>().Ignore(u => u.DomainEvents);
+    {
+        modelBuilder.Entity<User>().Ignore(u => u.DomainEvents);
+        modelBuilder.Entity<UserRole>().HasKey(r => new { r.UserId, r.RoleId });
+        modelBuilder.Entity<UserPermission>().HasKey(p => new { p.UserId, p.PermissionCode });
+    }
 }
 
 public class AuditSaveChangesInterceptorTests
@@ -45,7 +48,7 @@ public class AuditSaveChangesInterceptorTests
     public async Task SaveChanges_OnAddedAuditableEntity_WritesCreatedAuditLog()
     {
         using var context = CreateContext(Guid.NewGuid());
-        var user = User.Create("Nguyen Van A", "a@example.com", "hash", null, Roles.Admin);
+        var user = User.Create("Nguyen Van A", "a@example.com", "hash", null);
 
         context.Users.Add(user);
         await context.SaveChangesAsync();
@@ -61,7 +64,7 @@ public class AuditSaveChangesInterceptorTests
     public async Task SaveChanges_OnModifiedAuditableEntity_WritesUpdatedAuditLogWithOnlyChangedFields()
     {
         using var context = CreateContext(Guid.NewGuid());
-        var user = User.Create("Nguyen Van A", "a@example.com", "hash", null, Roles.Admin);
+        var user = User.Create("Nguyen Van A", "a@example.com", "hash", null);
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
@@ -77,7 +80,7 @@ public class AuditSaveChangesInterceptorTests
     public async Task SaveChanges_OnDeletedAuditableEntity_WritesDeletedAuditLog()
     {
         using var context = CreateContext(Guid.NewGuid());
-        var user = User.Create("Nguyen Van A", "a@example.com", "hash", null, Roles.Admin);
+        var user = User.Create("Nguyen Van A", "a@example.com", "hash", null);
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
@@ -92,7 +95,7 @@ public class AuditSaveChangesInterceptorTests
     public async Task SaveChanges_NoCurrentUser_RecordsNullChangedBy()
     {
         using var context = CreateContext(currentUserId: null);
-        var user = User.Create("Seed Admin", "seed@example.com", "hash", null, Roles.Admin);
+        var user = User.Create("Seed Admin", "seed@example.com", "hash", null);
 
         context.Users.Add(user);
         await context.SaveChangesAsync();

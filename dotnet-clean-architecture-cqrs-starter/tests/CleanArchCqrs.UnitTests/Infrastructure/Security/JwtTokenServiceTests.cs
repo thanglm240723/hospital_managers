@@ -1,5 +1,3 @@
-using CleanArchCqrs.Domain.Constants;
-using CleanArchCqrs.Domain.Identity;
 using CleanArchCqrs.Infrastructure.Security;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
@@ -10,26 +8,27 @@ namespace CleanArchCqrs.UnitTests.Infrastructure.Security;
 public class JwtTokenServiceTests
 {
     [Fact]
-    public void CreateAccessToken_IncludesExpectedClaimsAndExpiry()
+    public void CreateAccessToken_CarriesOnlyIdentityClaims()
     {
-        var options = Options.Create(new JwtOptions
+        var service = new JwtTokenService(Options.Create(new JwtOptions
         {
             Issuer = "test-issuer",
             Audience = "test-audience",
             SigningKey = new string('k', 32),
-            AccessTokenMinutes = 60
-        });
-        var service = new JwtTokenService(options);
-        var user = User.Create("Nguyen Van A", "a@example.com", "hash", null, Roles.Admin);
+        }));
+        var userId = Guid.NewGuid();
+        var familyId = Guid.NewGuid();
 
-        var token = service.CreateAccessToken(user);
+        var token = service.CreateAccessToken(userId, familyId, securityVersion: 3);
 
         var jwt = new JsonWebTokenHandler().ReadJsonWebToken(token.Token);
-        Assert.Equal(user.Id.ToString(), jwt.GetClaim(JwtRegisteredClaimNames.Sub).Value);
-        Assert.Equal(user.Email, jwt.GetClaim("email").Value);
-        Assert.Equal(user.FullName, jwt.GetClaim("name").Value);
-        Assert.Equal(Roles.Admin, jwt.GetClaim("role").Value);
-        Assert.Equal("test-issuer", jwt.Issuer);
-        Assert.True(token.ExpiresAtUtc > DateTimeOffset.UtcNow.AddMinutes(59));
+        Assert.Equal("HS256", jwt.Alg);
+        Assert.Equal(userId.ToString(), jwt.GetClaim("sub").Value);
+        Assert.Equal(familyId.ToString(), jwt.GetClaim("fid").Value);
+        Assert.Equal("3", jwt.GetClaim("sv").Value);
+        Assert.Equal(
+            new[] { "aud", "exp", "fid", "iat", "iss", "jti", "nbf", "sub", "sv" },
+            jwt.Claims.Select(c => c.Type).Distinct().OrderBy(t => t, StringComparer.Ordinal));
+        Assert.InRange(token.ExpiresAtUtc, DateTimeOffset.UtcNow.AddMinutes(14), DateTimeOffset.UtcNow.AddMinutes(15).AddSeconds(5));
     }
 }
