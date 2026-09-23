@@ -17,6 +17,7 @@ public static class ApplicationServiceExtensions
         services.AddValidatorsFromAssembly(typeof(ApplicationServiceExtensions).Assembly);
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(AuditBehavior<,>));
 
         return services;
     }
