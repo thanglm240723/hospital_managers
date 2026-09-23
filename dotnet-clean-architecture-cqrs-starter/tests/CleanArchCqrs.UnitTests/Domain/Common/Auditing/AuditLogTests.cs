@@ -34,4 +34,12 @@ public class AuditLogTests
     {
         Assert.False(typeof(IAuditable).IsAssignableFrom(typeof(AuditLog)));
     }
+
+    [Fact]
+    public void Create_StoresCorrelationId()
+    {
+        var log = AuditLog.Create("User", "abc-123", AuditAction.Updated, null, "{}", "corr-9");
+
+        Assert.Equal("corr-9", log.CorrelationId);
+    }
 }

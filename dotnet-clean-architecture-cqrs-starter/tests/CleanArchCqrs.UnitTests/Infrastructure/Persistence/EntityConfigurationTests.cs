@@ -62,17 +62,4 @@ public class EntityConfigurationTests
             i.Properties.Select(p => p.Name).SequenceEqual(new[]
                 { nameof(AuditLog.ChangedByUserId), nameof(AuditLog.ChangedAt) }));
     }
-
-    [Fact]
-    public void UserLoginHistoryConfiguration_SetsMaxLengthsAndIndexes()
-    {
-        using var context = CreateContext();
-        var entityType = context.Model.FindEntityType(typeof(UserLoginHistory))!;
-
-        Assert.Equal(256, entityType.FindProperty(nameof(UserLoginHistory.EmailAttempted))!.GetMaxLength());
-        Assert.Equal(100, entityType.FindProperty(nameof(UserLoginHistory.FailureReason))!.GetMaxLength());
-        Assert.Contains(entityType.GetIndexes(), i =>
-            i.Properties.Select(p => p.Name).SequenceEqual(new[]
-                { nameof(UserLoginHistory.UserId), nameof(UserLoginHistory.AttemptedAt) }));
-    }
 }

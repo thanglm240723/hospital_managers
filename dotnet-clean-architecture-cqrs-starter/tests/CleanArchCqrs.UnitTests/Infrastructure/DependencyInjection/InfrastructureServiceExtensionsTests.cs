@@ -17,6 +17,13 @@ file sealed class FakeCurrentUser : ICurrentUser
     public bool IsAuthenticated => false;
 }
 
+file sealed class FakeRequestContext : IRequestContext
+{
+    public string? CorrelationId => null;
+    public string? IpAddress => null;
+    public string? UserAgent => null;
+}
+
 public class InfrastructureServiceExtensionsTests
 {
     [Fact]
@@ -35,6 +42,7 @@ public class InfrastructureServiceExtensionsTests
 
         var services = new ServiceCollection();
         services.AddScoped<ICurrentUser, FakeCurrentUser>();
+        services.AddScoped<IRequestContext, FakeRequestContext>();
         services.AddInfrastructureServices(configuration);
 
         using var provider = services.BuildServiceProvider();
@@ -43,7 +51,6 @@ public class InfrastructureServiceExtensionsTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<AppDbContext>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IUnitOfWork>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IUserRepository>());
-        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IUserLoginHistoryRepository>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IPasswordHasher>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<ITokenService>());
     }

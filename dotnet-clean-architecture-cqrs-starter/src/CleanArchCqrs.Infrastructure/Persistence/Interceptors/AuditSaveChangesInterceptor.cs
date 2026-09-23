@@ -2,15 +2,23 @@ using System.Text.Json;
 using CleanArchCqrs.Application.Common.Interfaces;
 using CleanArchCqrs.Domain.Common.Auditing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace CleanArchCqrs.Infrastructure.Persistence.Interceptors;
 
 public sealed class AuditSaveChangesInterceptor : SaveChangesInterceptor
 {
-    private readonly ICurrentUser _currentUser;
+    private static readonly HashSet<string> ExcludedProperties = new(StringComparer.Ordinal) { "PasswordHash", "TokenHash" };
 
-    public AuditSaveChangesInterceptor(ICurrentUser currentUser) => _currentUser = currentUser;
+    private readonly ICurrentUser _currentUser;
+    private readonly IRequestContext _requestContext;
+
+    public AuditSaveChangesInterceptor(ICurrentUser currentUser, IRequestContext requestContext)
+    {
+        _currentUser = currentUser;
+        _requestContext = requestContext;
+    }
 
     public override InterceptionResult<int> SavingChanges(
         DbContextEventData eventData, InterceptionResult<int> result)
@@ -35,34 +43,40 @@ public sealed class AuditSaveChangesInterceptor : SaveChangesInterceptor
                      && e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
             .ToList())
         {
-            var entityName = entry.Entity.GetType().Name;
-            var entityId = entry.Property("Id").CurrentValue?.ToString() ?? "";
             var changes = new Dictionary<string, object?>();
-
-            switch (entry.State)
+            var action = entry.State switch
             {
-                case EntityState.Added:
-                    foreach (var p in entry.Properties.Where(p => p.Metadata.Name != "PasswordHash"))
+                EntityState.Added => AuditAction.Created,
+                EntityState.Modified => AuditAction.Updated,
+                _ => AuditAction.Deleted
+            };
+
+            foreach (var p in entry.Properties.Where(p => !ExcludedProperties.Contains(p.Metadata.Name)))
+            {
+                switch (action)
+                {
+                    case AuditAction.Created:
                         changes[p.Metadata.Name] = new { New = p.CurrentValue };
-                    context.Set<AuditLog>().Add(AuditLog.Create(
-                        entityName, entityId, AuditAction.Created, _currentUser.UserId, JsonSerializer.Serialize(changes)));
-                    break;
-
-                case EntityState.Modified:
-                    foreach (var p in entry.Properties.Where(p => p.IsModified && p.Metadata.Name != "PasswordHash"))
+                        break;
+                    case AuditAction.Updated when p.IsModified:
                         changes[p.Metadata.Name] = new { Old = p.OriginalValue, New = p.CurrentValue };
-                    if (changes.Count > 0)
-                        context.Set<AuditLog>().Add(AuditLog.Create(
-                            entityName, entityId, AuditAction.Updated, _currentUser.UserId, JsonSerializer.Serialize(changes)));
-                    break;
-
-                case EntityState.Deleted:
-                    foreach (var p in entry.Properties.Where(p => p.Metadata.Name != "PasswordHash"))
+                        break;
+                    case AuditAction.Deleted:
                         changes[p.Metadata.Name] = new { Old = p.OriginalValue };
-                    context.Set<AuditLog>().Add(AuditLog.Create(
-                        entityName, entityId, AuditAction.Deleted, _currentUser.UserId, JsonSerializer.Serialize(changes)));
-                    break;
+                        break;
+                }
             }
+
+            if (action == AuditAction.Updated && changes.Count == 0) continue;
+
+            context.Set<AuditLog>().Add(AuditLog.Create(
+                entry.Metadata.ClrType.Name, KeyOf(entry), action, _currentUser.UserId,
+                JsonSerializer.Serialize(changes), _requestContext.CorrelationId));
         }
     }
+
+    /// Khoá kép (UserRoles, RolePermissions…) nối bằng dấu phẩy theo thứ tự khai báo khoá.
+    private static string KeyOf(EntityEntry entry)
+        => string.Join(",", entry.Metadata.FindPrimaryKey()!.Properties
+            .Select(p => entry.Property(p.Name).CurrentValue?.ToString()));
 }

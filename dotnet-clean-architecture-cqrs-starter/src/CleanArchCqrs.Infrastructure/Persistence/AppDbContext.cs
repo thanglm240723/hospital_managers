@@ -12,7 +12,6 @@ public class AppDbContext : DbContext, IUnitOfWork
     }
 
     public DbSet<User> Users => Set<User>();
-    public DbSet<UserLoginHistory> UserLoginHistories => Set<UserLoginHistory>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
