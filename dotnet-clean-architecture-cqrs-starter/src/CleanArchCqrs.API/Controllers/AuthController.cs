@@ -3,6 +3,7 @@ using CleanArchCqrs.API.Authorization;
 using CleanArchCqrs.API.Contracts.Auth;
 using CleanArchCqrs.API.Errors;
 using CleanArchCqrs.Application.Auth;
+using CleanArchCqrs.Application.Auth.Commands.ChangePassword;
 using CleanArchCqrs.Application.Auth.Commands.Login;
 using CleanArchCqrs.Application.Auth.Commands.Logout;
 using CleanArchCqrs.Application.Auth.Commands.LogoutAll;
@@ -97,6 +98,15 @@ public sealed class AuthController : ControllerBase
         await _mediator.Send(new LogoutAllCommand(), ct);
         _cookies.Clear(Response);
         return NoContent();
+    }
+
+    [AllowWhilePasswordChangeRequired]
+    [CsrfProtected]
+    [HttpPost("change-password")]
+    public async Task<ActionResult<AccessTokenResponse>> ChangePassword(ChangePasswordCommand command, CancellationToken ct)
+    {
+        var result = await _mediator.Send(command, ct);
+        return Ok(new AccessTokenResponse(result.AccessToken, result.ExpiresAtUtc, result.MustChangePassword));
     }
 
     private IActionResult SessionInvalid(string message)
