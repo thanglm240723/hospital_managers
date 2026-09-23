@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using ValidationException = CleanArchCqrs.Application.Common.Exceptions.ValidationException;
 
 namespace CleanArchCqrs.Application.Common.Behaviors;
 

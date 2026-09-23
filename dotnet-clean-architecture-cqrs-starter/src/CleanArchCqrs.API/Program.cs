@@ -1,3 +1,6 @@
+using System.Net;
+using CleanArchCqrs.API.Auth;
+using CleanArchCqrs.API.DependencyInjection;
 using CleanArchCqrs.API.Errors;
 using CleanArchCqrs.API.Logging;
 using CleanArchCqrs.API.Middleware;
@@ -7,11 +10,8 @@ using CleanArchCqrs.Application.Common.Interfaces;
 using CleanArchCqrs.Application.DependencyInjection;
 using CleanArchCqrs.Infrastructure.DependencyInjection;
 using CleanArchCqrs.Infrastructure.Persistence;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 using Serilog;
 
@@ -19,7 +19,6 @@ namespace CleanArchCqrs.API;
 
 /// <summary>
 /// Application startup - wires up all layers, middleware, and Swagger.
-/// Full configuration with health checks, rate limiting, and caching is in the Patreon version.
 /// </summary>
 public class Program
 {
@@ -32,14 +31,12 @@ public class Program
             .ReadFrom.Services(services)
             .Destructure.With<SensitiveDataDestructuringPolicy>());
 
-        // Add services
         builder.Services.AddControllers()
             .AddJsonOptions(options =>
             {
                 options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
                 options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
             });
-
         builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
         builder.Services.AddProblemDetails();
         builder.Services.Configure<ApiBehaviorOptions>(options =>
@@ -47,6 +44,14 @@ public class Program
                 ProblemResponseWriter.ToResult(context.HttpContext, 400, ErrorCodes.ValidationFailed, "Dữ liệu không hợp lệ.",
                     context.ModelState.Where(e => e.Value?.Errors.Count > 0)
                         .ToDictionary(e => e.Key, e => e.Value!.Errors.Select(x => x.ErrorMessage).ToArray())));
+
+        // Chỉ tin X-Forwarded-* từ proxy đã khai báo (mặc định: loopback). Production: thêm IP Gateway vào cấu hình.
+        builder.Services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            foreach (var proxy in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [])
+                options.KnownProxies.Add(IPAddress.Parse(proxy));
+        });
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(c =>
@@ -62,16 +67,15 @@ public class Program
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<ICurrentUser, CurrentUser>();
         builder.Services.AddScoped<IRequestContext, HttpRequestContext>();
+        builder.Services.AddScoped<AuthCookieWriter>();
+        builder.Services.AddApiAuthentication();
 
-        // Register application and infrastructure services
         builder.Services.AddApplicationServices();
         builder.Services.AddInfrastructureServices(builder.Configuration);
-        
-        var app = builder.Build();
 
+        var app = builder.Build();
         await DbInitializer.InitializeAsync(app.Services);
 
-        // Configure pipeline
         if (app.Environment.IsDevelopment())
         {
             app.UseSwagger();
@@ -82,11 +86,19 @@ public class Program
             });
         }
 
+        app.UseForwardedHeaders();
         app.UseMiddleware<CorrelationIdMiddleware>();
         app.UseExceptionHandler();
-        app.UseSerilogRequestLogging();
+        app.UseSerilogRequestLogging(options => options.EnrichDiagnosticContext = (diagnostics, http) =>
+        {
+            if (http.User.Identity?.IsAuthenticated != true) return;
+            diagnostics.Set("UserId", http.User.FindFirst("sub")?.Value);
+            diagnostics.Set("SessionFamilyId", http.User.FindFirst("fid")?.Value);
+        });
 
         app.UseHttpsRedirection();
+        app.UseAuthentication();
+        app.UseMiddleware<UserLogContextMiddleware>();
         app.UseAuthorization();
         app.MapControllers();
         app.MapHealthChecks("/health");
