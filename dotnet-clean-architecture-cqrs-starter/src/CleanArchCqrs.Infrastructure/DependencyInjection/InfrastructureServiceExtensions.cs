@@ -2,6 +2,7 @@ using CleanArchCqrs.Application.Common.Interfaces;
 using CleanArchCqrs.Domain.Common;
 using CleanArchCqrs.Domain.Identity;
 using CleanArchCqrs.Domain.Identity.Sessions;
+using CleanArchCqrs.Infrastructure.Caching;
 using CleanArchCqrs.Infrastructure.HealthChecks;
 using CleanArchCqrs.Infrastructure.Persistence;
 using CleanArchCqrs.Infrastructure.Persistence.Interceptors;
@@ -61,6 +62,12 @@ public static class InfrastructureServiceExtensions
         services.AddHealthChecks()
             .AddCheck<DatabaseHealthCheck>("database")
             .AddCheck<RedisHealthCheck>("redis", failureStatus: HealthStatus.Degraded);
+
+        services.AddSingleton<ISessionCache, SessionCache>();
+        services.AddSingleton<ILoginRateLimiter, LoginRateLimiter>();
+        services.AddScoped<ICacheInvalidator, CacheInvalidator>();
+        services.AddScoped<CacheInvalidationProcessor>();
+        services.AddHostedService<CacheInvalidationWorker>();
 
         return services;
     }
