@@ -1,4 +1,5 @@
 using CleanArchCqrs.Application.Common.Auditing;
+using CleanArchCqrs.Application.Common.Exceptions;
 using CleanArchCqrs.Application.Common.Interfaces;
 using CleanArchCqrs.Domain.Common;
 using CleanArchCqrs.Domain.Common.Auditing;
@@ -30,6 +31,14 @@ public sealed class SetRolePermissionsCommandHandler : IRequestHandler<SetRolePe
     {
         var role = await _roles.GetByIdAsync(request.RoleId, ct)
                    ?? throw new NotFoundException($"Role '{request.RoleId}' was not found.");
+
+        if (role.Code == SystemRoles.Admin)
+        {
+            var target = request.PermissionCodes.ToHashSet(StringComparer.Ordinal);
+            if (!Permissions.IdentityAccess.Select(p => p.Code).All(target.Contains))
+                throw new ConflictException(ErrorCodes.Conflict,
+                    "Không thể gỡ quyền quản trị hệ thống (IdentityAccess) khỏi vai trò admin.");
+        }
 
         role.SetPermissions(request.PermissionCodes);
         foreach (var userId in await _users.GetUserIdsInRoleAsync(role.Id, ct))

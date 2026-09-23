@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 
 namespace CleanArchCqrs.IntegrationTests.Infrastructure;
 
@@ -58,4 +59,21 @@ public sealed class ApiFactory : WebApplicationFactory<CleanArchCqrs.API.Program
         if (_configureServices is not null)
             builder.ConfigureTestServices(_configureServices);
     }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+        ClearConnectionPool();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        ClearConnectionPool();
+    }
+
+    // Mỗi ApiFactory có một Npgsql pool riêng (connection string riêng theo database); dọn ngay khi factory
+    // dispose để trả kết nối vật lý về server thay vì chờ Npgsql tự dọn theo Idle Lifetime — tránh cộng dồn
+    // kết nối "còn treo" qua nhiều test class chạy tuần tự trong cùng collection (xem ContainersFixture).
+    private void ClearConnectionPool() => NpgsqlConnection.ClearPool(new NpgsqlConnection(DatabaseConnectionString));
 }

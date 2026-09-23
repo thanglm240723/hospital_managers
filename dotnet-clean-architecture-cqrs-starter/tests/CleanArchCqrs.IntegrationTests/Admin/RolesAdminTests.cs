@@ -79,4 +79,26 @@ public class RolesAdminTests : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.OK, (await member.GetAsync("/api/v1/permissions")).StatusCode);
     }
+
+    [Fact]
+    public async Task SetRolePermissions_RejectsStrippingIdentityAccessFromAdminRole()
+    {
+        var roles = await JsonAsync(await _admin.GetAsync("/api/v1/roles"));
+        var adminRoleId = roles.EnumerateArray().Single(r => r.GetProperty("code").GetString() == SystemRoles.Admin).GetProperty("id").GetString();
+
+        var stripped = await _admin.SendAsync(HttpMethod.Put, $"/api/v1/roles/{adminRoleId}/permissions", new { permissionCodes = Array.Empty<string>() });
+
+        Assert.Equal(HttpStatusCode.Conflict, stripped.StatusCode);
+        Assert.Equal("conflict", (await JsonAsync(stripped)).GetProperty("code").GetString());
+
+        var missingOne = await _admin.SendAsync(HttpMethod.Put, $"/api/v1/roles/{adminRoleId}/permissions",
+            new { permissionCodes = Permissions.IdentityAccess.Select(p => p.Code).Skip(1).ToArray() });
+
+        Assert.Equal(HttpStatusCode.Conflict, missingOne.StatusCode);
+
+        var kept = await _admin.SendAsync(HttpMethod.Put, $"/api/v1/roles/{adminRoleId}/permissions",
+            new { permissionCodes = Permissions.IdentityAccess.Select(p => p.Code).ToArray() });
+
+        Assert.Equal(HttpStatusCode.NoContent, kept.StatusCode);
+    }
 }
