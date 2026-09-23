@@ -1,9 +1,11 @@
 using CleanArchCqrs.Application.Common.Interfaces;
 using CleanArchCqrs.Domain.Identity;
+using CleanArchCqrs.Infrastructure.Caching;
 using CleanArchCqrs.Infrastructure.Persistence;
 using CleanArchCqrs.IntegrationTests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using StackExchange.Redis;
 
 namespace CleanArchCqrs.IntegrationTests.Helpers;
 
@@ -33,6 +35,19 @@ public static class TestData
         db.Users.Add(user);
         await db.SaveChangesAsync();
         return user.Id;
+    }
+
+    /// Cấp quyền lẻ thẳng trong DB và xoá cache quyền — dùng để dựng tình huống test, không phải để test API cấp quyền.
+    public static async Task GrantAsync(ApiFactory factory, Guid userId, params string[] permissionCodes)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var user = await db.Users.Include(u => u.PermissionGrants).SingleAsync(u => u.Id == userId);
+        foreach (var code in permissionCodes)
+            user.GrantPermission(code, "test setup", null, DateTimeOffset.UtcNow);
+        await db.SaveChangesAsync();
+        await scope.ServiceProvider.GetRequiredService<IConnectionMultiplexer>().GetDatabase()
+            .KeyDeleteAsync(CacheKeys.Permissions(userId));
     }
 
     public static async Task<T> QueryAsync<T>(ApiFactory factory, Func<AppDbContext, Task<T>> query)

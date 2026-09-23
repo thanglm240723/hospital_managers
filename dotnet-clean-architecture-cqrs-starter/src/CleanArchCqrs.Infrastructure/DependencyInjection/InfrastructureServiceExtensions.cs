@@ -71,6 +71,7 @@ public static class InfrastructureServiceExtensions
         services.AddSingleton<ISessionCache, SessionCache>();
         services.AddSingleton<ILoginRateLimiter, LoginRateLimiter>();
         services.AddScoped<ICacheInvalidator, CacheInvalidator>();
+        services.AddScoped<IPermissionService, PermissionService>();
         services.AddScoped<CacheInvalidationProcessor>();
         services.AddHostedService<CacheInvalidationWorker>();
 
