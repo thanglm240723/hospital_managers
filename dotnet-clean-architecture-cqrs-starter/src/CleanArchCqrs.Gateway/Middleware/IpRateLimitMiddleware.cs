@@ -38,8 +38,13 @@ public sealed class IpRateLimitMiddleware
         try
         {
             var db = redis.GetDatabase();
-            var count = await db.StringIncrementAsync(key);
-            await db.KeyExpireAsync(key, Window, ExpireWhen.HasNoExpiry);
+            // INCR + EXPIRE(NX) phải nguyên tử: nếu crash xảy ra giữa hai lệnh riêng lẻ, key mất TTL
+            // và bị coi như khoá vĩnh viễn (không bao giờ tự hết hạn).
+            var transaction = db.CreateTransaction();
+            var countTask = transaction.StringIncrementAsync(key);
+            _ = transaction.KeyExpireAsync(key, Window, ExpireWhen.HasNoExpiry);
+            await transaction.ExecuteAsync();
+            var count = await countTask;
             if (count > rule.Limit)
             {
                 var retryAfter = await db.KeyTimeToLiveAsync(key) ?? Window;

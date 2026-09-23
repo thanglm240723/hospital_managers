@@ -9,6 +9,7 @@ namespace CleanArchCqrs.IntegrationTests.Gateway;
 public class GatewayRateLimitAndHealthTests : IAsyncLifetime
 {
     private const string Login = "/api/v1/auth/login";
+    private const string Refresh = "/api/v1/auth/refresh";
     private readonly ContainersFixture _containers;
     private ApiFactory _api = default!;
 
@@ -30,6 +31,44 @@ public class GatewayRateLimitAndHealthTests : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.TooManyRequests, eleventh.StatusCode);
         Assert.True(int.Parse(eleventh.Headers.GetValues("Retry-After").Single()) > 0);
+        Assert.Equal(10, gateway.BackendRequests.Count(r => r.Path == Login));
+    }
+
+    [Fact]
+    public async Task ThirtyFirstRefreshFromSameIpWithinAMinute_Is429AtGateway()
+    {
+        await using var gateway = new GatewayFactory(_api, _containers.RedisConnectionString);
+        var client = new AuthTestClient(gateway.CreateHttpsClient());
+
+        for (var i = 0; i < 30; i++)
+            Assert.NotEqual(HttpStatusCode.TooManyRequests, (await client.RefreshAsync()).StatusCode);
+        var thirtyFirst = await client.RefreshAsync();
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, thirtyFirst.StatusCode);
+        Assert.True(int.Parse(thirtyFirst.Headers.GetValues("Retry-After").Single()) > 0);
+        Assert.Equal(30, gateway.BackendRequests.Count(r => r.Path == Refresh));
+    }
+
+    [Fact]
+    public async Task SpoofedXForwardedFor_DoesNotEvadeIpRateLimit()
+    {
+        // ForwardedHeaders:KnownProxies không khai TestServer's caller ⇒ Gateway phải bỏ qua X-Forwarded-For
+        // do client tự khai; nếu không, đổi header mỗi request sẽ né được rate limit theo IP.
+        await using var gateway = new GatewayFactory(_api, _containers.RedisConnectionString);
+        var client = new AuthTestClient(gateway.CreateHttpsClient());
+
+        for (var i = 0; i < 10; i++)
+        {
+            var spoofedIp = $"203.0.113.{i}";
+            var response = await client.SendAsync(HttpMethod.Post, Login, new { email = TestData.NewEmail(), password = "Wrong-Password-1" },
+                csrf: false, bearer: false, extraHeaders: new Dictionary<string, string> { ["X-Forwarded-For"] = spoofedIp });
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
+        var eleventh = await client.SendAsync(HttpMethod.Post, Login, new { email = TestData.NewEmail(), password = "Wrong-Password-1" },
+            csrf: false, bearer: false, extraHeaders: new Dictionary<string, string> { ["X-Forwarded-For"] = "203.0.113.250" });
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, eleventh.StatusCode);
         Assert.Equal(10, gateway.BackendRequests.Count(r => r.Path == Login));
     }
 
