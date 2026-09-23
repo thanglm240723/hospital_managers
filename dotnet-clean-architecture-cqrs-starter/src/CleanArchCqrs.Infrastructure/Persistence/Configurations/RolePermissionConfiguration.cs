@@ -4,14 +4,13 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CleanArchCqrs.Infrastructure.Persistence.Configurations;
 
-public sealed class UserPermissionConfiguration : IEntityTypeConfiguration<UserPermission>
+public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RolePermission>
 {
-    public void Configure(EntityTypeBuilder<UserPermission> builder)
+    public void Configure(EntityTypeBuilder<RolePermission> builder)
     {
-        builder.ToTable("UserPermissions");
-        builder.HasKey(p => new { p.UserId, p.PermissionCode });
+        builder.ToTable("RolePermissions");
+        builder.HasKey(p => new { p.RoleId, p.PermissionCode });
         builder.Property(p => p.PermissionCode).HasMaxLength(100);
-        builder.Property(p => p.Reason).IsRequired().HasMaxLength(500);
         builder.HasOne<Permission>().WithMany().HasForeignKey(p => p.PermissionCode).OnDelete(DeleteBehavior.Restrict);
     }
 }

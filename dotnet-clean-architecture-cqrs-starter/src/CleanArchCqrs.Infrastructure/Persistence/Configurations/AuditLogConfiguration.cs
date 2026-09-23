@@ -13,5 +13,6 @@ public sealed class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
         builder.Property(a => a.Changes).IsRequired().HasColumnType("jsonb");
         builder.HasIndex(a => new { a.EntityName, a.EntityId, a.ChangedAt });
         builder.HasIndex(a => new { a.ChangedByUserId, a.ChangedAt });
+        builder.Property(a => a.CorrelationId).HasMaxLength(64);
     }
 }

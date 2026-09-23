@@ -10,5 +10,6 @@ public sealed class UserRoleConfiguration : IEntityTypeConfiguration<UserRole>
     {
         builder.ToTable("UserRoles");
         builder.HasKey(r => new { r.UserId, r.RoleId });
+        builder.HasOne<Role>().WithMany().HasForeignKey(r => r.RoleId).OnDelete(DeleteBehavior.Restrict);
     }
 }
