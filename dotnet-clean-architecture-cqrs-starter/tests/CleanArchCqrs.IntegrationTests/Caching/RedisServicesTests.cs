@@ -68,6 +68,23 @@ public class RedisServicesTests
     }
 
     [Fact]
+    public async Task LoginRateLimiter_RegisterFailure_SetsTtlAtomicallyWithCount()
+    {
+        // INCR và EXPIRE(NX) chạy trong một transaction Redis; ngay sau lệnh gọi đầu tiên,
+        // key đếm lỗi phải đã có TTL — nếu không nguyên tử, một crash giữa hai lệnh có thể để lại
+        // key không TTL và khoá vĩnh viễn.
+        await using var factory = await CreateAsync();
+        var limiter = factory.Services.GetRequiredService<ILoginRateLimiter>();
+        var email = $"rl-{Guid.NewGuid():N}@test.local";
+
+        await limiter.RegisterFailureAsync(email);
+
+        var ttl = await Redis(factory).KeyTimeToLiveAsync(CacheKeys.LoginFailures(email));
+        Assert.NotNull(ttl);
+        Assert.InRange(ttl!.Value, TimeSpan.FromMinutes(14), TimeSpan.FromMinutes(15));
+    }
+
+    [Fact]
     public async Task LoginRateLimiter_RedisDown_NeverLocks()
     {
         await using var factory = await CreateAsync(RedisDown);

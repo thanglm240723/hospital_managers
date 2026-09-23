@@ -42,9 +42,12 @@ public sealed class LoginRateLimiter : ILoginRateLimiter
         {
             var db = _redis.GetDatabase();
             var key = CacheKeys.LoginFailures(normalizedEmail);
-            await db.StringIncrementAsync(key);
-            // Luôn đảm bảo có TTL (kể cả khi lần INCR đầu bị gián đoạn trước EXPIRE) — không bao giờ khoá vĩnh viễn.
-            await db.KeyExpireAsync(key, Window, ExpireWhen.HasNoExpiry);
+            // INCR + EXPIRE(NX) phải nguyên tử: nếu crash xảy ra giữa hai lệnh riêng lẻ, key mất TTL
+            // và GetLockoutRemainingAsync coi như khoá vĩnh viễn (không bao giờ tự hết hạn).
+            var transaction = db.CreateTransaction();
+            _ = transaction.StringIncrementAsync(key);
+            _ = transaction.KeyExpireAsync(key, Window, ExpireWhen.HasNoExpiry);
+            await transaction.ExecuteAsync();
         }
         catch (Exception ex) when (RedisFailure.Is(ex))
         {
