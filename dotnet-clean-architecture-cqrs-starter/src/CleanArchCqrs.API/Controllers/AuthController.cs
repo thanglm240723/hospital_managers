@@ -1,10 +1,16 @@
 using CleanArchCqrs.API.Auth;
+using CleanArchCqrs.API.Authorization;
 using CleanArchCqrs.API.Contracts.Auth;
 using CleanArchCqrs.API.Errors;
 using CleanArchCqrs.Application.Auth;
 using CleanArchCqrs.Application.Auth.Commands.Login;
 using CleanArchCqrs.Application.Auth.Commands.Logout;
+using CleanArchCqrs.Application.Auth.Commands.LogoutAll;
 using CleanArchCqrs.Application.Auth.Commands.Refresh;
+using CleanArchCqrs.Application.Auth.Commands.RevokeSession;
+using CleanArchCqrs.Application.Auth.Models;
+using CleanArchCqrs.Application.Auth.Queries.GetMe;
+using CleanArchCqrs.Application.Auth.Queries.GetMySessions;
 using CleanArchCqrs.Application.Common.Exceptions;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -62,6 +68,33 @@ public sealed class AuthController : ControllerBase
     public async Task<IActionResult> Logout(CancellationToken ct)
     {
         await _mediator.Send(new LogoutCommand(Request.Cookies[AuthCookieWriter.RefreshCookie]), ct);
+        _cookies.Clear(Response);
+        return NoContent();
+    }
+
+    [AllowWhilePasswordChangeRequired]
+    [HttpGet("me")]
+    public async Task<ActionResult<MeDto>> Me(CancellationToken ct)
+        => Ok(await _mediator.Send(new GetMeQuery(), ct));
+
+    [HttpGet("sessions")]
+    public async Task<ActionResult<IReadOnlyList<SessionDto>>> Sessions(CancellationToken ct)
+        => Ok(await _mediator.Send(new GetMySessionsQuery(), ct));
+
+    [CsrfProtected]
+    [HttpPost("sessions/{id:guid}/revoke")]
+    public async Task<IActionResult> RevokeSession(Guid id, CancellationToken ct)
+    {
+        await _mediator.Send(new RevokeSessionCommand(id), ct);
+        return NoContent();
+    }
+
+    [AllowWhilePasswordChangeRequired]
+    [CsrfProtected]
+    [HttpPost("logout-all")]
+    public async Task<IActionResult> LogoutAll(CancellationToken ct)
+    {
+        await _mediator.Send(new LogoutAllCommand(), ct);
         _cookies.Clear(Response);
         return NoContent();
     }
