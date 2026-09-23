@@ -40,6 +40,10 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<ITokenService, JwtTokenService>();
         services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
 
+        services.Configure<AuthOptions>(configuration.GetSection("Auth"));
+        services.AddSingleton<IRefreshTokenGenerator, RefreshTokenGenerator>();
+        services.AddSingleton<ICsrfTokenService, CsrfTokenService>();
+
         services.TryAddSingleton(TimeProvider.System);
         services.Configure<SeedOptions>(configuration.GetSection("Seed"));
         services.AddScoped<IdentitySeeder>();

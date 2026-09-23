@@ -22,4 +22,13 @@ public class PasswordHasherTests
 
         Assert.False(hasher.Verify("wrong-password", hash));
     }
+
+    [Fact]
+    public void SimulateVerify_DoesNotThrowForAnyInput()
+    {
+        var hasher = new PasswordHasher();
+
+        hasher.SimulateVerify("anything");
+        hasher.SimulateVerify("");
+    }
 }
