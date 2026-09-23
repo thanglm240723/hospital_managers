@@ -1,9 +1,13 @@
 using CleanArchCqrs.API.Auth;
 using CleanArchCqrs.API.Authorization;
+using CleanArchCqrs.API.Contracts.Users;
 using CleanArchCqrs.Application.Common.Models;
 using CleanArchCqrs.Application.Users.Commands.ActivateUser;
 using CleanArchCqrs.Application.Users.Commands.CreateUser;
 using CleanArchCqrs.Application.Users.Commands.DeactivateUser;
+using CleanArchCqrs.Application.Users.Commands.GrantUserPermission;
+using CleanArchCqrs.Application.Users.Commands.RevokeUserPermission;
+using CleanArchCqrs.Application.Users.Commands.SetUserRoles;
 using CleanArchCqrs.Application.Users.Models;
 using CleanArchCqrs.Application.Users.Queries.GetUser;
 using CleanArchCqrs.Application.Users.Queries.GetUsers;
@@ -55,6 +59,33 @@ public sealed class UsersController : ControllerBase
     public async Task<IActionResult> Activate(Guid id, CancellationToken ct)
     {
         await _mediator.Send(new ActivateUserCommand(id), ct);
+        return NoContent();
+    }
+
+    [HasPermission(Permissions.Users.ManageRoles)]
+    [CsrfProtected]
+    [HttpPut("{id:guid}/roles")]
+    public async Task<IActionResult> SetRoles(Guid id, SetUserRolesRequest request, CancellationToken ct)
+    {
+        await _mediator.Send(new SetUserRolesCommand(id, request.RoleIds), ct);
+        return NoContent();
+    }
+
+    [HasPermission(Permissions.Users.ManagePermissions)]
+    [CsrfProtected]
+    [HttpPost("{id:guid}/permissions/grant")]
+    public async Task<IActionResult> GrantPermission(Guid id, PermissionGrantRequest request, CancellationToken ct)
+    {
+        await _mediator.Send(new GrantUserPermissionCommand(id, request.PermissionCode, request.Reason), ct);
+        return NoContent();
+    }
+
+    [HasPermission(Permissions.Users.ManagePermissions)]
+    [CsrfProtected]
+    [HttpPost("{id:guid}/permissions/revoke")]
+    public async Task<IActionResult> RevokePermission(Guid id, PermissionGrantRequest request, CancellationToken ct)
+    {
+        await _mediator.Send(new RevokeUserPermissionCommand(id, request.PermissionCode, request.Reason), ct);
         return NoContent();
     }
 }
