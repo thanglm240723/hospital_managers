@@ -1,9 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using CleanArchCqrs.Application.Common.Auditing;
+using CleanArchCqrs.Domain.Common.Auditing;
 using CleanArchCqrs.Infrastructure.Caching;
 using CleanArchCqrs.IntegrationTests.Helpers;
 using CleanArchCqrs.IntegrationTests.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.JsonWebTokens;
 using StackExchange.Redis;
@@ -73,6 +76,36 @@ public class ChangePasswordTests : IAsyncLifetime
         var response = await ChangeAsync(client, TestData.DefaultPassword, $"{local}-X1");
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task WrongCurrentPassword_IsAudited()
+    {
+        var (email, client) = await LoggedInAsync();
+        var userId = await TestData.QueryAsync(_factory, db => db.Users.Where(u => u.Email == email).Select(u => u.Id).SingleAsync());
+
+        await ChangeAsync(client, "Not-My-Password-1", NewPassword);
+
+        var record = await TestData.QueryAsync(_factory, db => db.AuditRecords
+            .SingleAsync(a => a.Action == AuditActions.PasswordChange && a.ActorId == userId && a.Result == AuditResult.Failed));
+        Assert.Equal("InvalidCurrentPassword", record.Reason);
+    }
+
+    /// I1 (final review): 5 lần sai mật khẩu hiện tại phải bị khoá tạm giống login (cùng bộ đếm rl:email),
+    /// nếu không kẻ giữ access token (XSS, hoặc token bị đánh cắp trong 15 phút) dò được mật khẩu vô hạn lần.
+    [Fact]
+    public async Task FiveWrongCurrentPasswordAttempts_SixthIsRateLimited()
+    {
+        var (_, client) = await LoggedInAsync();
+
+        for (var i = 0; i < 5; i++)
+            Assert.Equal(HttpStatusCode.BadRequest, (await ChangeAsync(client, "Not-My-Password-1", NewPassword)).StatusCode);
+
+        var response = await ChangeAsync(client, TestData.DefaultPassword, NewPassword);   // kể cả đúng mật khẩu hiện tại
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, response.StatusCode);
+        Assert.True(int.Parse(response.Headers.GetValues("Retry-After").Single()) > 0);
+        Assert.Equal("rate_limited", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
     }
 
     [Fact]
