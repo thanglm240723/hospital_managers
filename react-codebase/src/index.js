@@ -12,6 +12,12 @@ import getMuiTheme from 'material-ui/styles/getMuiTheme';
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
 
 import { Loading } from './feature';
+import {
+  Login, ChangePassword, PrivateRoute, bootAuth, expireSession, AUTH_LOGGED_OUT,
+} from './feature/Auth';
+import { setSessionHandlers } from './service/http';
+import { startAuthSync, onRemoteLogout } from './feature/Auth/session/refreshCoordinator';
+import { startRefreshScheduler } from './feature/Auth/session/refreshScheduler';
 import combinedReducers from './reducer';
 import * as serviceWorker from './serviceWorker';
 
@@ -35,15 +41,28 @@ const store = createStore(
   ),
 );
 
+// Phiên đăng nhập: token trong RAM, refresh chủ động, đồng bộ đa tab.
+setSessionHandlers({
+  onSessionExpired: () => store.dispatch(expireSession()),
+  onPasswordChangeRequired: () => history.push('/change-password'),
+});
+onRemoteLogout(() => store.dispatch({ type: AUTH_LOGGED_OUT }));
+startAuthSync();
+startRefreshScheduler(() => store.dispatch(expireSession()));
+store.dispatch(bootAuth());
+
+const App = () => <div className="c-panel">HMS</div>;
+
 const ReactApp = () => (
   <BrowserRouter>
     <Provider store={store}>
       <MuiThemeProvider muiTheme={getMuiTheme()}>
         <React.Fragment>
           <Loading />
-          {/* Routes (Login, ChangePassword, guarded App) are added by the plan-06 auth tasks. */}
           <Switch>
-            <Route path="/" render={() => <div className="c-panel">HMS</div>} />
+            <Route exact path="/login" component={Login} />
+            <PrivateRoute exact path="/change-password" component={ChangePassword} />
+            <PrivateRoute path="/" component={App} />
           </Switch>
         </React.Fragment>
       </MuiThemeProvider>

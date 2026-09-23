@@ -24,15 +24,15 @@ function schedule(onFailure) {
   }, delay);
 }
 
-export function startRefreshScheduler(onFailure) {
-  stopRefreshScheduler();
-  unsubscribe = subscribe(() => schedule(onFailure));
-  schedule(onFailure);
-}
-
 export function stopRefreshScheduler() {
   clearTimeout(timer);
   timer = null;
   if (unsubscribe) unsubscribe();
   unsubscribe = null;
+}
+
+export function startRefreshScheduler(onFailure) {
+  stopRefreshScheduler();
+  unsubscribe = subscribe(() => schedule(onFailure));
+  schedule(onFailure);
 }

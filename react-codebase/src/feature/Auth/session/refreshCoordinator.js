@@ -30,7 +30,6 @@ const remoteLogoutListeners = new Set();
 // tab has processed the winner's `token` broadcast: such a call would otherwise read the
 // already-bumped counter as its own baseline, see no mismatch, and resend the consumed cookie.
 let myTokenGen = null;
-subscribe((current) => { myTokenGen = current ? readGen() : null; });
 
 // localStorage access is best-effort: if it throws (privacy mode, storage disabled, quota) or is
 // absent, we fall back to the pre-fix behaviour (rely solely on the in-memory token check).
@@ -54,6 +53,8 @@ function writeGen(next) {
     // tab falls back to the token/broadcast check instead of skipping the network call.
   }
 }
+
+subscribe((current) => { myTokenGen = current ? readGen() : null; });
 
 function getChannel() {
   if (channel || typeof BroadcastChannel === 'undefined') return channel;
