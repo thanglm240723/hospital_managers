@@ -8,11 +8,14 @@ jest.useFakeTimers();
 beforeEach(() => {
   refreshAccessToken.mockReset();
   refreshAccessToken.mockReturnValue(Promise.resolve('t'));
+  // Deterministic by default (no jitter); the jitter test below overrides this.
+  jest.spyOn(Math, 'random').mockReturnValue(0);
 });
 
 afterEach(() => {
   stopRefreshScheduler();
   clearAccessToken();
+  Math.random.mockRestore();
 });
 
 it('refreshes sixty seconds before the access token expires', () => {
@@ -47,4 +50,17 @@ it('does nothing after the token is cleared', () => {
   jest.advanceTimersByTime(10 * 60 * 1000);
 
   expect(refreshAccessToken).not.toHaveBeenCalled();
+});
+
+it('adds up to five seconds of jitter to the scheduled refresh delay, spreading tabs apart', () => {
+  Math.random.mockReturnValue(1); // jitter = floor(1 * 5000) = 5000ms
+  startRefreshScheduler(jest.fn());
+  setAccessToken('a', new Date(Date.now() + 5 * 60 * 1000).toISOString());
+
+  // Base delay (no jitter) would be 4 minutes (5min - 60s lead). With max jitter it is 4min5s.
+  jest.advanceTimersByTime(4 * 60 * 1000 + 5000 - 1);
+  expect(refreshAccessToken).not.toHaveBeenCalled();
+
+  jest.advanceTimersByTime(1);
+  expect(refreshAccessToken).toHaveBeenCalledTimes(1);
 });
