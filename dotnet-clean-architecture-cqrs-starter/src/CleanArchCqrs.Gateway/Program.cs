@@ -1,6 +1,10 @@
+using System.Net;
 using CleanArchCqrs.Gateway.Auth;
 using CleanArchCqrs.Gateway.DependencyInjection;
+using CleanArchCqrs.Gateway.HealthChecks;
 using CleanArchCqrs.Gateway.Middleware;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Serilog;
 
 namespace CleanArchCqrs.Gateway;
@@ -22,14 +26,28 @@ public class Program
         builder.Services.AddGatewayReverseProxy(builder.Configuration);
         builder.Services.AddGatewayAuthentication(builder.Configuration);
 
+        builder.Services.AddHealthChecks()
+            .AddCheck<RedisHealthCheck>("redis", failureStatus: HealthStatus.Degraded);
+
+        // Chỉ tin X-Forwarded-For từ load balancer đã khai báo — không thì client tự khai IP để né rate limit.
+        builder.Services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            foreach (var proxy in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [])
+                options.KnownProxies.Add(IPAddress.Parse(proxy));
+        });
+
         var app = builder.Build();
 
+        app.UseForwardedHeaders();
         app.UseMiddleware<CorrelationIdMiddleware>();
         app.UseMiddleware<StripInternalHeadersMiddleware>();
         app.UseSerilogRequestLogging();
+        app.UseMiddleware<IpRateLimitMiddleware>();
         app.UseAuthentication();
         app.UseAuthorization();
 
+        app.MapHealthChecks("/health").AllowAnonymous();
         app.MapReverseProxy();
 
         app.Run();
