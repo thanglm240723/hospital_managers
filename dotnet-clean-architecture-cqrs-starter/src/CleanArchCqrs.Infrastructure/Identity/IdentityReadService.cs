@@ -1,6 +1,7 @@
 using CleanArchCqrs.Application.Auth.Models;
 using CleanArchCqrs.Application.Common.Interfaces;
 using CleanArchCqrs.Application.Common.Models;
+using CleanArchCqrs.Application.Roles.Models;
 using CleanArchCqrs.Application.Users.Models;
 using CleanArchCqrs.Domain.Identity;
 using CleanArchCqrs.Domain.Identity.Sessions;
@@ -87,6 +88,14 @@ public sealed class IdentityReadService : IIdentityReadService
 
         return new UserDetailDto(user.Id, user.Email, user.FullName, user.AvatarUrl, user.IsActive, user.MustChangePassword,
             await LoadRoleRefsAsync(userId, ct), grants, user.CreatedAt, user.LastLoginAt);
+    }
+
+    public async Task<IReadOnlyList<RoleDto>> GetRolesAsync(CancellationToken ct = default)
+    {
+        var roles = await _db.Roles.AsNoTracking().Include(r => r.GrantedPermissions).OrderBy(r => r.Code).ToListAsync(ct);
+        return roles.Select(r => new RoleDto(r.Id, r.Code, r.Name, r.IsSystem,
+                r.GrantedPermissions.Select(p => p.PermissionCode).Order(StringComparer.Ordinal).ToList()))
+            .ToList();
     }
 
     private async Task<IReadOnlyList<RoleRefDto>> LoadRoleRefsAsync(Guid userId, CancellationToken ct)

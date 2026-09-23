@@ -1,5 +1,6 @@
 using CleanArchCqrs.Application.Auth.Models;
 using CleanArchCqrs.Application.Common.Models;
+using CleanArchCqrs.Application.Roles.Models;
 using CleanArchCqrs.Application.Users.Models;
 
 namespace CleanArchCqrs.Application.Common.Interfaces;
@@ -12,4 +13,5 @@ public interface IIdentityReadService
         CancellationToken ct = default);
     Task<PagedResult<UserSummaryDto>> GetUsersAsync(int pageNumber, int pageSize, string? searchTerm, CancellationToken ct = default);
     Task<UserDetailDto?> GetUserAsync(Guid userId, CancellationToken ct = default);
+    Task<IReadOnlyList<RoleDto>> GetRolesAsync(CancellationToken ct = default);
 }
