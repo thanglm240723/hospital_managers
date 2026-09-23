@@ -19,6 +19,18 @@ public sealed class SessionRepository : ISessionRepository
             .Select(t => (Guid?)t.FamilyId)
             .SingleOrDefaultAsync(ct);
 
+    public async Task<(Guid FamilyId, SessionStatus Status)?> FindFamilyStatusByTokenHashAsync(string tokenHash, CancellationToken ct = default)
+    {
+        var match = await (
+            from t in _context.RefreshTokens.AsNoTracking()
+            join f in _context.SessionFamilies.AsNoTracking() on t.FamilyId equals f.Id
+            where t.TokenHash == tokenHash
+            select new { f.Id, f.Status }
+        ).SingleOrDefaultAsync(ct);
+
+        return match is null ? null : (match.Id, match.Status);
+    }
+
     public async Task<SessionFamily?> GetForUpdateAsync(Guid familyId, string? presentedTokenHash, CancellationToken ct = default)
     {
         EnsureTransaction();

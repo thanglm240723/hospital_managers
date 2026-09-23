@@ -3,6 +3,7 @@ using CleanArchCqrs.Domain.Identity.Sessions;
 using CleanArchCqrs.Infrastructure.Repositories;
 using CleanArchCqrs.IntegrationTests.Helpers;
 using CleanArchCqrs.IntegrationTests.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace CleanArchCqrs.IntegrationTests.Persistence;
@@ -43,6 +44,35 @@ public class SessionRepositoryTests
 
         Assert.Equal(family.Id, await repo.FindFamilyIdByTokenHashAsync("h1"));
         Assert.Null(await repo.FindFamilyIdByTokenHashAsync("missing"));
+    }
+
+    [Fact]
+    public async Task FindFamilyStatusByTokenHash_ReturnsStatusOfOwningFamily()
+    {
+        var (cs, _, family) = await SeedFamilyAsync();
+        await using var db = TestDb.Create(cs);
+        var repo = new SessionRepository(db);
+
+        var active = await repo.FindFamilyStatusByTokenHashAsync("h1");
+        Assert.Equal((family.Id, SessionStatus.Active), active);
+        Assert.Null(await repo.FindFamilyStatusByTokenHashAsync("missing"));
+    }
+
+    [Fact]
+    public async Task FindFamilyStatusByTokenHash_RevokedFamily_ReturnsRevokedStatus()
+    {
+        var (cs, _, family) = await SeedFamilyAsync();
+        await using (var db = TestDb.Create(cs))
+        {
+            var loaded = await db.SessionFamilies.SingleAsync(f => f.Id == family.Id);
+            loaded.Revoke(SessionRevokeReason.Reuse, Now.AddMinutes(1));
+            await db.SaveChangesAsync();
+        }
+
+        await using var verify = TestDb.Create(cs);
+        var result = await new SessionRepository(verify).FindFamilyStatusByTokenHashAsync("h1");
+
+        Assert.Equal((family.Id, SessionStatus.Revoked), result);
     }
 
     [Fact]

@@ -132,6 +132,30 @@ public class RefreshAndLogoutTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Refresh_ActiveSession_NoCsrfCookieNoHeader_Returns403()
+    {
+        var client = await LoggedInAsync();
+        client.CsrfToken = null;   // trình duyệt không còn giữ cookie __Host-csrf (vd. bị xoá bởi tiện ích/tràn cookie jar)
+
+        var response = await client.SendAsync(HttpMethod.Post, "/api/v1/auth/refresh", csrf: false, bearer: false);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("csrf_failed", await CodeAsync(response));
+    }
+
+    [Fact]
+    public async Task Logout_ActiveSession_NoCsrfCookieNoHeader_Returns403()
+    {
+        var client = await LoggedInAsync();
+        client.CsrfToken = null;
+
+        var response = await client.SendAsync(HttpMethod.Post, "/api/v1/auth/logout", csrf: false, bearer: false);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("csrf_failed", await CodeAsync(response));
+    }
+
+    [Fact]
     public async Task Logout_RevokesSessionClearsCookiesAndCache()
     {
         var client = await LoggedInAsync();

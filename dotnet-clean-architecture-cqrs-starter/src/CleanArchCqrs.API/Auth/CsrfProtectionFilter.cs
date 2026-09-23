@@ -8,7 +8,11 @@ using Microsoft.Extensions.Options;
 
 namespace CleanArchCqrs.API.Auth;
 
-/// Đặc tả kỹ thuật §4.1: kiểm Origin theo allowlist + CSRF token có chữ ký gắn phiên (cộng thêm SameSite=Strict của cookie).
+/// Đặc tả kỹ thuật §4.1: kiểm Origin theo allowlist + CSRF token có chữ ký gắn phiên.
+/// SameSite=Strict trên cookie chỉ chặn request KHÁC SITE; request CÙNG SITE nhưng khác origin (vd. một
+/// subdomain khác) vẫn mang cookie đi kèm — đó chính là kịch bản header CSRF phải chặn, không phải chỉ
+/// phòng hờ. Vì vậy việc bắt buộc header không được phép tuỳ vào cookie phía client còn giữ hay không;
+/// nó phải dựa trên trạng thái phiên phía server (family Active hay không).
 public sealed class CsrfProtectionFilter : IAsyncActionFilter
 {
     public const string HeaderName = "X-CSRF-Token";
@@ -37,14 +41,8 @@ public sealed class CsrfProtectionFilter : IAsyncActionFilter
             return;
         }
 
-        var familyId = await ResolveFamilyIdAsync(http);
-        // Double-submit chỉ có ý nghĩa khi trình duyệt còn giữ cookie __Host-csrf. Nếu cookie này
-        // đã bị xoá (logout/reuse ở tab khác) mà cookie __Host-rt còn sót lại (stale), request vẫn
-        // cùng-origin (SameSite=Strict đã chặn mọi request khác-origin gửi kèm cookie) — không có gì
-        // để đối chiếu, nên bỏ qua và để handler tự quyết (thường là 401 vì phiên đã vô hiệu).
-        var hasCsrfCookie = http.Request.Cookies.ContainsKey(AuthCookieWriter.CsrfCookie);
-        if (familyId is not null && hasCsrfCookie
-            && !_csrf.IsValid(familyId.Value, http.Request.Headers[HeaderName].ToString()))
+        var familyId = await ResolveActiveFamilyIdAsync(http);
+        if (familyId is not null && !_csrf.IsValid(familyId.Value, http.Request.Headers[HeaderName].ToString()))
         {
             context.Result = Reject(http);
             return;
@@ -53,15 +51,18 @@ public sealed class CsrfProtectionFilter : IAsyncActionFilter
         await next();
     }
 
-    /// Có access token ⇒ family trong claim fid. Không có ⇒ family của refresh cookie.
-    /// Không xác định được family ⇒ request không thể đổi trạng thái phiên nào, để handler xử lý (401/204).
-    private async Task<Guid?> ResolveFamilyIdAsync(HttpContext http)
+    /// Có access token ⇒ family trong claim fid (JWT hợp lệ luôn ứng với phiên Active tại lúc phát hành).
+    /// Không có ⇒ tra family qua cookie __Host-rt, nhưng CHỈ coi là "xác định được family" khi family đó
+    /// đang Active — family đã Revoked/không tồn tại (token cũ, đã dùng, gõ mò...) không còn phiên nào để
+    /// CSRF bảo vệ, nhường cho handler tự quyết (401 cho refresh, 204 cho logout).
+    private async Task<Guid?> ResolveActiveFamilyIdAsync(HttpContext http)
     {
         if (Guid.TryParse(http.User.FindFirst("fid")?.Value, out var fid)) return fid;
         var refreshToken = http.Request.Cookies[AuthCookieWriter.RefreshCookie];
-        return string.IsNullOrEmpty(refreshToken)
-            ? null
-            : await _sessions.FindFamilyIdByTokenHashAsync(_refreshTokens.Hash(refreshToken), http.RequestAborted);
+        if (string.IsNullOrEmpty(refreshToken)) return null;
+
+        var resolved = await _sessions.FindFamilyStatusByTokenHashAsync(_refreshTokens.Hash(refreshToken), http.RequestAborted);
+        return resolved is { Status: SessionStatus.Active } ? resolved.Value.FamilyId : null;
     }
 
     private static Microsoft.AspNetCore.Mvc.ObjectResult Reject(HttpContext http)
