@@ -1,6 +1,11 @@
 using CleanArchCqrs.API.Auth;
 using CleanArchCqrs.API.Contracts.Auth;
+using CleanArchCqrs.API.Errors;
+using CleanArchCqrs.Application.Auth;
 using CleanArchCqrs.Application.Auth.Commands.Login;
+using CleanArchCqrs.Application.Auth.Commands.Logout;
+using CleanArchCqrs.Application.Auth.Commands.Refresh;
+using CleanArchCqrs.Application.Common.Exceptions;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -28,5 +33,42 @@ public sealed class AuthController : ControllerBase
         var session = await _mediator.Send(command, ct);
         _cookies.Write(Response, session.RefreshToken, session.SessionFamilyId, session.SessionExpiresAtUtc);
         return Ok(new AccessTokenResponse(session.AccessToken, session.AccessTokenExpiresAtUtc, session.MustChangePassword));
+    }
+
+    [AllowAnonymous]
+    [CsrfProtected]
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh(CancellationToken ct)
+    {
+        var refreshToken = Request.Cookies[AuthCookieWriter.RefreshCookie];
+        if (string.IsNullOrEmpty(refreshToken)) return SessionInvalid(AuthMessages.SessionInvalid);
+
+        try
+        {
+            var session = await _mediator.Send(new RefreshCommand(refreshToken), ct);
+            _cookies.Write(Response, session.RefreshToken, session.SessionFamilyId, session.SessionExpiresAtUtc);
+            return Ok(new AccessTokenResponse(session.AccessToken, session.AccessTokenExpiresAtUtc, session.MustChangePassword));
+        }
+        catch (UnauthorizedException ex)
+        {
+            // Trả lỗi tại đây (không để exception handler) vì handler xoá sạch header, gồm cả Set-Cookie xoá cookie.
+            return SessionInvalid(ex.Message);
+        }
+    }
+
+    [AllowAnonymous]
+    [CsrfProtected]
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout(CancellationToken ct)
+    {
+        await _mediator.Send(new LogoutCommand(Request.Cookies[AuthCookieWriter.RefreshCookie]), ct);
+        _cookies.Clear(Response);
+        return NoContent();
+    }
+
+    private IActionResult SessionInvalid(string message)
+    {
+        _cookies.Clear(Response);
+        return ProblemResponseWriter.ToResult(HttpContext, StatusCodes.Status401Unauthorized, ErrorCodes.Unauthenticated, message);
     }
 }
