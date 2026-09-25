@@ -1,25 +1,41 @@
+name: hospital-management
+
 services:
   postgres:
     image: postgres:17-alpine
+    container_name: hospital-postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: CleanArchCqrsDb
+    # Cổng host 5433 vì máy dev đã có PostgreSQL cài sẵn (service postgresql-x64-18) chiếm 5432.
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d CleanArchCqrsDb"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   redis:
     image: redis:7.4-alpine
+    container_name: hospital-redis
     command: ["redis-server", "--appendonly", "yes"]
     ports:
       - "6379:6379"
     volumes:
       - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   seq:
     image: datalust/seq:2024.3
+    container_name: hospital-seq
     environment:
       ACCEPT_EULA: "Y"
       SEQ_FIRSTRUN_NOAUTHENTICATION: "true"
@@ -29,6 +45,9 @@ services:
       - seqdata:/data
 
 volumes:
-  pgdata: {}
-  redisdata: {}
-  seqdata: {}
+  pgdata:
+    name: hospital-pgdata
+  redisdata:
+    name: hospital-redisdata
+  seqdata:
+    name: hospital-seqdata

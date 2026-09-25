@@ -12,10 +12,16 @@ public sealed class ContainersFixture : IAsyncLifetime
     // max_connections mặc định (100) không đủ khi nhiều ApiFactory (mỗi class một database + một Npgsql pool
     // riêng) chạy tuần tự trong cùng collection — pool nhàn rỗi chưa kịp bị dọn giữa các class. Nâng lên 300
     // và giới hạn Maximum Pool Size mỗi kết nối test (xem CreateDatabaseAsync) để không chạm trần.
+
+    // Đặt tên có tiền tố để dễ nhận ra trên Docker Desktop (mặc định Docker sinh tên ngẫu nhiên kiểu
+    // "tender_payne"); hậu tố ngẫu nhiên để nhiều lần chạy test song song không trùng tên.
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17-alpine")
+        .WithName($"hospital-test-postgres-{Guid.NewGuid().ToString("N")[..8]}")
         .WithCommand("-c", "max_connections=300")
         .Build();
-    private readonly RedisContainer _redis = new RedisBuilder("redis:7.4-alpine").Build();
+    private readonly RedisContainer _redis = new RedisBuilder("redis:7.4-alpine")
+        .WithName($"hospital-test-redis-{Guid.NewGuid().ToString("N")[..8]}")
+        .Build();
 
     public string RedisConnectionString => _redis.GetConnectionString();
 

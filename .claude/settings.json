@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "model": "opus",
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build *)",
+      "Bash(dotnet test *)",
+      "Bash(dotnet ef migrations add *)",
+      "Bash(dotnet ef migrations list *)",
+      "Bash(dotnet ef migrations script *)",
+      "Bash(dotnet ef dbcontext info *)",
+      "Bash(dotnet tool restore)",
+      "PowerShell(dotnet build *)",
+      "PowerShell(dotnet test *)",
+      "PowerShell(dotnet ef migrations add *)",
+      "PowerShell(dotnet ef migrations list *)",
+      "PowerShell(dotnet ef migrations script *)",
+      "PowerShell(dotnet ef dbcontext info *)",
+      "PowerShell(dotnet tool restore)"
+    ],
+    "ask": [
+      "Bash(dotnet ef database update *)",
+      "Bash(dotnet ef migrations remove *)",
+      "Bash(git commit *)",
+      "Bash(git merge *)",
+      "Bash(git cherry-pick *)",
+      "Bash(git revert *)",
+      "Bash(git stash *)",
+      "Bash(docker compose down *)",
+      "PowerShell(dotnet ef database update *)",
+      "PowerShell(dotnet ef migrations remove *)",
+      "PowerShell(git commit *)",
+      "PowerShell(git merge *)",
+      "PowerShell(git cherry-pick *)",
+      "PowerShell(git revert *)",
+      "PowerShell(git stash *)",
+      "PowerShell(docker compose down *)"
+    ],
+    "deny": [
+      "Read(./**/.env)",
+      "Read(./**/.env.*)",
+      "Read(./**/*.pfx)",
+      "Read(./**/*.p12)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)",
+      "Read(./**/secrets.json)",
+      "Read(./**/appsettings.Production.json)",
+      "Read(./.claude/dbhub-dev.toml)",
+      "Edit(./**/.env)",
+      "Edit(./**/.env.*)",
+      "Edit(./**/*.pfx)",
+      "Edit(./**/*.p12)",
+      "Edit(./**/*.pem)",
+      "Edit(./**/*.key)",
+      "Edit(./**/secrets.json)",
+      "Edit(./**/appsettings.Production.json)",
+      "Edit(./.claude/dbhub-dev.toml)",
+      "Bash(dotnet ef database drop *)",
+      "Bash(dotnet user-secrets list *)",
+      "Bash(git push *)",
+      "Bash(git reset --hard *)",
+      "Bash(git clean -f*)",
+      "Bash(git restore *)",
+      "Bash(git checkout -- *)",
+      "Bash(git rebase *)",
+      "Bash(git filter-branch *)",
+      "Bash(docker compose down -v*)",
+      "Bash(docker volume rm *)",
+      "Bash(docker volume prune *)",
+      "Bash(docker system prune *)",
+      "PowerShell(dotnet ef database drop *)",
+      "PowerShell(dotnet user-secrets list *)",
+      "PowerShell(git push *)",
+      "PowerShell(git reset --hard *)",
+      "PowerShell(git clean -f*)",
+      "PowerShell(git restore *)",
+      "PowerShell(git checkout -- *)",
+      "PowerShell(git rebase *)",
+      "PowerShell(git filter-branch *)",
+      "PowerShell(docker compose down -v*)",
+      "PowerShell(docker volume rm *)",
+      "PowerShell(docker volume prune *)",
+      "PowerShell(docker system prune *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe",
+            "args": [
+              "-NoProfile",
+              "-ExecutionPolicy",
+              "Bypass",
+              "-File",
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-shell.ps1"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

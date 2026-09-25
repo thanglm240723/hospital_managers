@@ -1,0 +1,15 @@
+# Cấu hình Codex cho repo HMS (áp dụng khi project được đánh dấu trusted).
+# Hướng dẫn cho agent nằm ở AGENTS.md — file này chỉ đặt chế độ chạy.
+
+# Hỏi trước khi chạy lệnh ngoài sandbox / cần leo quyền.
+approval_policy = "on-request"
+
+# Chỉ ghi trong workspace; không ghi ra ngoài repo.
+sandbox_mode = "workspace-write"
+
+# AGENTS.md khá dài — nâng giới hạn để không bị cắt.
+project_doc_max_bytes = 65536
+
+[sandbox_workspace_write]
+# Build/test cần tải NuGet/npm và kéo image Testcontainers.
+network_access = true

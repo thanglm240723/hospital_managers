@@ -1,0 +1,30 @@
+# Cấu hình mẫu MCP DBHub — cho agent ĐỌC database PostgreSQL dev (chỉ đọc).
+#
+# Dùng: sao chép thành .claude/dbhub-dev.toml (file này bị .gitignore, không commit), điền mật khẩu,
+# rồi đăng ký MCP server — xem README.md → "Agent và MCP".
+# Mặc định trỏ vào container `hospital-postgres` của docker-compose (cổng host 5433).
+
+[[sources]]
+id = "hms-dev"
+description = "HMS - PostgreSQL dev (docker-compose, cổng 5433)"
+type = "postgres"
+
+host = "localhost"
+port = 5433
+database = "CleanArchCqrsDb"
+user = "postgres"
+password = "<MAT_KHAU_DB_DEV>"
+
+# Container local không bật TLS. Trỏ sang server dùng chung thì đổi thành "require".
+sslmode = "disable"
+connection_timeout = 30
+
+[[tools]]
+name = "execute_sql"
+source = "hms-dev"
+readonly = true
+max_rows = 1000
+
+[[tools]]
+name = "search_objects"
+source = "hms-dev"
