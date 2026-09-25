@@ -33,7 +33,7 @@ it('reports a failed scheduled refresh', async () => {
   const onFailure = jest.fn();
   refreshAccessToken.mockReturnValue(Promise.reject(new Error('expired')));
   startRefreshScheduler(onFailure);
-  setAccessToken('a', new Date(Date.now() + 30 * 1000).toISOString());   // đã trong vùng 60s ⇒ refresh ngay
+  setAccessToken('a', new Date(Date.now() + 30 * 1000).toISOString()); // đã trong vùng 60s ⇒ refresh ngay
 
   jest.advanceTimersByTime(0);
   await Promise.resolve();

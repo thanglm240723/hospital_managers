@@ -2,8 +2,13 @@ import authReducer from '../reducer';
 import { AUTH_AUTHENTICATED, AUTH_LOGGED_OUT } from '../actionTypes';
 
 const me = {
-  id: 'u1', email: 'a@b.vn', fullName: 'A', avatarUrl: null,
-  roles: [{ id: 'r1', code: 'doctor', name: 'Bác sĩ' }], permissions: ['users.read'], mustChangePassword: false,
+  id: 'u1',
+  email: 'a@b.vn',
+  fullName: 'A',
+  avatarUrl: null,
+  roles: [{ id: 'r1', code: 'doctor', name: 'Bác sĩ' }],
+  permissions: ['users.read'],
+  mustChangePassword: false,
 };
 
 it('starts in booting state', () => {

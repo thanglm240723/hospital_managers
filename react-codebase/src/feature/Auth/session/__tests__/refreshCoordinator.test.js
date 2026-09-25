@@ -41,7 +41,7 @@ it('does not call the network when another tab refreshed while we waited for the
     configurable: true,
     value: {
       request: (name, task) => {
-        setAccessToken('from-other-tab', inFifteenMinutes());   // tab kia refresh + broadcast trong lúc ta chờ khoá
+        setAccessToken('from-other-tab', inFifteenMinutes()); // tab kia refresh + broadcast trong lúc ta chờ khoá
         return task();
       },
     },
