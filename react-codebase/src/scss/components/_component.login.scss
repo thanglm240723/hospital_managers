@@ -1,0 +1,292 @@
+/* ==========================================================================
+   # START LOGIN COMPONENT
+   ==========================================================================
+*/
+
+$login-brand: #0B5E63;
+$login-brand-dark: #08464A;
+$login-ink: #14201F;
+$login-muted: #4A5856;
+$login-line: #B9C4C2;
+$login-ground: #F3F5F4;
+$login-focus: #9FD3D2;
+
+.c-login {
+    display: flex;
+    min-height: 100vh;
+    background: $login-ground;
+    color: $login-ink;
+    font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+}
+
+.c-login__aside {
+    width: 40%;
+    max-width: 560px;
+    padding: 64px;
+    background: $login-brand;
+    color: #F4F1EA;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 32px;
+}
+
+.c-login__brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.c-login__logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: #F4F1EA;
+    color: $login-brand;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.c-login__headline {
+    margin: 0 0 20px;
+    font-family: Lora, Georgia, serif;
+    font-weight: 500;
+    font-size: 44px;
+    line-height: 1.2;
+}
+
+.c-login__tagline {
+    margin: 0;
+    max-width: 400px;
+    font-size: 18px;
+    line-height: 1.6;
+    color: #CFE3E1;
+}
+
+.c-login__notice {
+    display: flex;
+    gap: 12px;
+    padding: 16px 18px;
+    border-radius: 12px;
+    background: rgba(244, 241, 234, 0.08);
+    font-size: 15px;
+    line-height: 1.5;
+    color: #E4EEEC;
+}
+
+.c-login__main {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 20px;
+}
+
+.c-login__form {
+    width: 100%;
+    max-width: 440px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.c-login__title {
+    margin: 0 0 8px;
+    font-size: 32px;
+    font-weight: 700;
+    color: $login-ink;
+}
+
+.c-login__subtitle {
+    margin: 0;
+    font-size: 17px;
+    color: $login-muted;
+}
+
+.c-login__field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.c-login__label {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.c-login__input {
+    width: 100%;
+    height: 56px;
+    padding: 0 16px;
+    font: inherit;
+    font-size: 18px;
+    color: $login-ink;
+    background: #fff;
+    border: 1.5px solid $login-line;
+    border-radius: 10px;
+
+    &:focus {
+        outline: 3px solid $login-focus;
+        outline-offset: 1px;
+        border-color: $login-brand;
+    }
+}
+
+.c-login__password {
+    position: relative;
+
+    .c-login__input {
+        padding-right: 64px;
+    }
+}
+
+.c-login__toggle {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: $login-muted;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+        background: $login-ground;
+    }
+}
+
+.c-login__caps {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    color: #8A4B00;
+}
+
+.c-login__alert {
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-size: 16px;
+    line-height: 1.5;
+
+    svg {
+        flex-shrink: 0;
+        margin-top: 1px;
+    }
+
+    &--error {
+        background: #FDECEA;
+        color: #8C1D13;
+    }
+
+    &--wait {
+        background: #FFF4E0;
+        color: #6B3A00;
+    }
+
+    &--info {
+        background: #E6F1F0;
+        color: $login-brand-dark;
+    }
+}
+
+.c-login__submit {
+    height: 56px;
+    border: 0;
+    border-radius: 10px;
+    background: $login-brand;
+    color: #fff;
+    font: inherit;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover {
+        background: $login-brand-dark;
+    }
+
+    &:focus-visible {
+        outline: 3px solid $login-focus;
+        outline-offset: 2px;
+    }
+
+    &:disabled {
+        background: #C9D3D1;
+        color: $login-muted;
+        cursor: not-allowed;
+    }
+}
+
+.c-login__input.is-invalid {
+    border-color: #B42318;
+}
+
+.c-login__hint,
+.c-login__field-error {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.c-login__hint {
+    color: $login-muted;
+}
+
+.c-login__field-error {
+    color: #8C1D13;
+}
+
+.c-login__secondary {
+    height: 52px;
+    border: 1.5px solid $login-line;
+    border-radius: 10px;
+    background: transparent;
+    color: $login-ink;
+    font: inherit;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+        background: #fff;
+        color: $login-ink;
+        text-decoration: none;
+    }
+}
+
+.c-login__help {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.6;
+    color: $login-muted;
+
+    strong {
+        color: $login-ink;
+    }
+}
+
+@media (max-width: 900px) {
+    .c-login__aside {
+        display: none;
+    }
+}
+
+/* ==========================================================================
+   # END LOGIN COMPONENT
+   ==========================================================================
+*/

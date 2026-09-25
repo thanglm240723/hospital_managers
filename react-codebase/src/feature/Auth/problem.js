@@ -6,3 +6,11 @@ export const problemTitle = error => (
 export const problemFieldErrors = error => (
   error && error.response && error.response.data && error.response.data.errors
 ) || {};
+
+// Số giây trong header Retry-After (429), null nếu không có.
+export const retryAfterSeconds = (error) => {
+  const value = error && error.response && error.response.headers
+    && error.response.headers['retry-after'];
+  const seconds = parseInt(value, 10);
+  return Number.isNaN(seconds) ? null : seconds;
+};
