@@ -12,14 +12,13 @@ public static class ProblemResponses
     public static IDictionary<string, object?> BuildBody(HttpContext http, int status, string code, string title,
         IDictionary<string, string[]>? errors = null)
     {
-        var correlationId = http.Request.Headers["X-Correlation-Id"].ToString();
         var body = new Dictionary<string, object?>
         {
             ["type"] = "about:blank",
             ["title"] = title,
             ["status"] = status,
             ["code"] = code,
-            ["traceId"] = string.IsNullOrEmpty(correlationId) ? http.TraceIdentifier : correlationId,
+            ["traceId"] = http.TraceIdentifier,
         };
         if (errors is not null)
             body["errors"] = errors.ToDictionary(e => JsonNamingPolicy.CamelCase.ConvertName(e.Key), e => e.Value);

@@ -10,7 +10,8 @@ public sealed class AuthCookieWriter(TimeProvider time)
 
     public void Write(HttpResponse response, string refreshToken, string csrfToken, DateTimeOffset sessionExpiresAtUtc)
     {
-        var maxAge = sessionExpiresAtUtc - time.GetUtcNow();
+        var remaining = sessionExpiresAtUtc - time.GetUtcNow();
+        var maxAge = remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
         response.Cookies.Append(RefreshCookie, refreshToken, Options(httpOnly: true, maxAge));
         // Không HttpOnly: JS đọc để gửi lại trong header X-CSRF-Token.
         response.Cookies.Append(CsrfCookie, csrfToken, Options(httpOnly: false, maxAge));

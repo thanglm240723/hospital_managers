@@ -55,6 +55,19 @@ public class AuthCookieWriterTests
     }
 
     [Fact]
+    public void Write_SessionAlreadyExpired_MaxAgeIsZero()
+    {
+        var context = new DefaultHttpContext();
+        var writer = new AuthCookieWriter(new FakeTimeProvider(Now));
+
+        writer.Write(context.Response, "refresh-token", "csrf-token", Now.AddMinutes(-5));
+
+        var setCookies = context.Response.Headers.SetCookie.ToArray();
+        var refreshCookie = Assert.Single(setCookies, c => c!.StartsWith(AuthCookieWriter.RefreshCookie + "=", StringComparison.Ordinal));
+        Assert.Contains("max-age=0", refreshCookie, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Clear_DeletesBothCookies_WithMatchingAttributes()
     {
         var context = new DefaultHttpContext();

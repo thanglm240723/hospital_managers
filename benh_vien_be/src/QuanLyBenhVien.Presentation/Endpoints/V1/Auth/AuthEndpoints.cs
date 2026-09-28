@@ -51,10 +51,10 @@ public sealed class AuthEndpoints : ICarterModule
     }
 
     private static Task<IResult> RefreshAsync(HttpContext http, ISender sender, CancellationToken ct) =>
-        throw new NotImplementedException();
+        Task.FromResult(NotImplemented(http));
 
     private static Task<IResult> LogoutAsync(HttpContext http, ISender sender, CancellationToken ct) =>
-        throw new NotImplementedException();
+        Task.FromResult(NotImplemented(http));
 
     private static async Task<IResult> MeAsync(HttpContext http, ISender sender, CancellationToken ct)
     {
@@ -63,8 +63,12 @@ public sealed class AuthEndpoints : ICarterModule
     }
 
     private static Task<IResult> ChangePasswordAsync(ChangePasswordRequest req, HttpContext http, ISender sender, CancellationToken ct) =>
-        throw new NotImplementedException();
+        Task.FromResult(NotImplemented(http));
 
     private static Task<IResult> LogoutAllAsync(HttpContext http, ISender sender, CancellationToken ct) =>
-        throw new NotImplementedException();
+        Task.FromResult(NotImplemented(http));
+
+    private static IResult NotImplemented(HttpContext http) =>
+        ProblemResponses.Create(http, StatusCodes.Status501NotImplemented, "not_implemented",
+            "Chức năng chưa được hỗ trợ.");
 }

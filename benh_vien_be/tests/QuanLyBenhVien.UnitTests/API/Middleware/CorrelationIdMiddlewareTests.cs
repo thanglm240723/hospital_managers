@@ -33,4 +33,40 @@ public class CorrelationIdMiddlewareTests
 
         Assert.Equal("existing-id-123", context.Response.Headers["X-Correlation-Id"].ToString());
     }
+
+    [Fact]
+    public async Task InvokeAsync_TooLongHeader_GeneratesNewId()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Correlation-Id"] = new string('a', 129);
+        var middleware = new CorrelationIdMiddleware(_ => Task.CompletedTask);
+
+        await middleware.InvokeAsync(context);
+
+        Assert.NotEqual(new string('a', 129), context.Response.Headers["X-Correlation-Id"].ToString());
+    }
+
+    [Fact]
+    public async Task InvokeAsync_InvalidCharacters_GeneratesNewId()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Correlation-Id"] = "bad id; drop table";
+        var middleware = new CorrelationIdMiddleware(_ => Task.CompletedTask);
+
+        await middleware.InvokeAsync(context);
+
+        Assert.NotEqual("bad id; drop table", context.Response.Headers["X-Correlation-Id"].ToString());
+    }
+
+    [Fact]
+    public async Task InvokeAsync_SetsTraceIdentifier()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Correlation-Id"] = "existing-id-123";
+        var middleware = new CorrelationIdMiddleware(_ => Task.CompletedTask);
+
+        await middleware.InvokeAsync(context);
+
+        Assert.Equal("existing-id-123", context.TraceIdentifier);
+    }
 }

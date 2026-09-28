@@ -12,10 +12,10 @@ public sealed class InternalApiKeyFilter(IOptions<InternalApiOptions> options) :
 
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
-        var expected = Encoding.UTF8.GetBytes(options.Value.Key);
-        var provided = Encoding.UTF8.GetBytes(context.HttpContext.Request.Headers[HeaderName].ToString());
+        var expected = SHA256.HashData(Encoding.UTF8.GetBytes(options.Value.Key));
+        var provided = SHA256.HashData(Encoding.UTF8.GetBytes(context.HttpContext.Request.Headers[HeaderName].ToString()));
 
-        if (expected.Length == 0 || !CryptographicOperations.FixedTimeEquals(provided, expected))
+        if (string.IsNullOrEmpty(options.Value.Key) || !CryptographicOperations.FixedTimeEquals(provided, expected))
         {
             return ProblemResponses.Create(context.HttpContext, StatusCodes.Status401Unauthorized,
                 "unauthenticated", "Thiếu hoặc sai khoá nội bộ.");

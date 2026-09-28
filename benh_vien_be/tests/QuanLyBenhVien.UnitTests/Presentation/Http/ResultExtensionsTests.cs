@@ -12,8 +12,7 @@ public class ResultExtensionsTests
 
     private static async Task<(int Status, System.Text.Json.JsonElement Body, string? RetryAfter)> ToProblemAsync(Error error)
     {
-        var context = new DefaultHttpContext { RequestServices = Services };
-        context.Request.Headers["X-Correlation-Id"] = "corr-9";
+        var context = new DefaultHttpContext { RequestServices = Services, TraceIdentifier = "corr-9" };
         context.Response.Body = new MemoryStream();
 
         await error.ToProblem(context).ExecuteAsync(context);

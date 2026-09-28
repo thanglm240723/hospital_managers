@@ -16,8 +16,7 @@ public class GlobalExceptionHandlerTests
 
     private static async Task<(HttpContext Context, JsonElement Body)> HandleAsync(Exception exception)
     {
-        var context = new DefaultHttpContext { RequestServices = Services };
-        context.Request.Headers["X-Correlation-Id"] = "corr-123";
+        var context = new DefaultHttpContext { RequestServices = Services, TraceIdentifier = "corr-123" };
         context.Response.Body = new MemoryStream();
 
         var handled = await new GlobalExceptionHandler(NullLogger<GlobalExceptionHandler>.Instance)
