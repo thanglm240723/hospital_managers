@@ -1,4 +1,4 @@
-namespace QuanLyBenhVien.Infrastructure.Caching;
+namespace QuanLyBenhVien.Persistence.Caching;
 
 /// Lệnh xoá key Redis chờ thực hiện. Ghi cùng transaction nghiệp vụ nên không bao giờ thất lạc.
 public sealed class CacheInvalidation

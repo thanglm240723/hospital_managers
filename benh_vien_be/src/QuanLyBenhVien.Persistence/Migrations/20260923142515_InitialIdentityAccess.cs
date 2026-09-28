@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace QuanLyBenhVien.Infrastructure.Persistence.Migrations
+namespace QuanLyBenhVien.Persistence.Migrations
 {
     /// <inheritdoc />
     public partial class InitialIdentityAccess : Migration

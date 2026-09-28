@@ -1,5 +1,18 @@
+using QuanLyBenhVien.Domain.Common.Auditing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
 namespace QuanLyBenhVien.Persistence.Configurations.Common;
 
-internal sealed class AuditLogConfiguration
+internal sealed class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
 {
+    public void Configure(EntityTypeBuilder<AuditLog> builder)
+    {
+        builder.Property(a => a.EntityName).IsRequired().HasMaxLength(100);
+        builder.Property(a => a.EntityId).IsRequired().HasMaxLength(100);
+        builder.Property(a => a.Changes).IsRequired().HasColumnType("jsonb");
+        builder.HasIndex(a => new { a.EntityName, a.EntityId, a.ChangedAt });
+        builder.HasIndex(a => new { a.ChangedByUserId, a.ChangedAt });
+        builder.Property(a => a.CorrelationId).HasMaxLength(64);
+    }
 }
