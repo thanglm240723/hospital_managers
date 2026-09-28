@@ -4,6 +4,7 @@ using FluentValidation.Results;
 using QuanLyBenhVien.API.Middleware;
 using QuanLyBenhVien.Domain.Exceptions;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -11,9 +12,11 @@ namespace QuanLyBenhVien.UnitTests.API.Middleware;
 
 public class GlobalExceptionHandlerTests
 {
+    private static readonly IServiceProvider Services = new ServiceCollection().AddLogging().BuildServiceProvider();
+
     private static async Task<(HttpContext Context, JsonElement Body)> HandleAsync(Exception exception)
     {
-        var context = new DefaultHttpContext();
+        var context = new DefaultHttpContext { RequestServices = Services };
         context.Request.Headers["X-Correlation-Id"] = "corr-123";
         context.Response.Body = new MemoryStream();
 
