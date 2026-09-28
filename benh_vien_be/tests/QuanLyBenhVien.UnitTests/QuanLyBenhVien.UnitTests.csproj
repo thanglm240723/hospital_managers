@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\QuanLyBenhVien.Domain\QuanLyBenhVien.Domain.csproj" />
+    <ProjectReference Include="..\..\src\QuanLyBenhVien.Application\QuanLyBenhVien.Application.csproj" />
+    <ProjectReference Include="..\..\src\QuanLyBenhVien.Infrastructure\QuanLyBenhVien.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\QuanLyBenhVien.API\QuanLyBenhVien.API.csproj" />
+    <ProjectReference Include="..\..\src\QuanLyBenhVien.Gateway\QuanLyBenhVien.Gateway.csproj" />
+  </ItemGroup>
+
+</Project>
