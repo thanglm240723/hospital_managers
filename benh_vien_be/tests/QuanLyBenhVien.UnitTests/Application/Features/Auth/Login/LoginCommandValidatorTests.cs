@@ -27,7 +27,7 @@ public class LoginCommandValidatorTests
     [Fact]
     public void EmailTooLong_HasError()
     {
-        var longEmail = new string('a', 250) + "@a.vn";
+        var longEmail = new string('a', 300) + "@a.vn";
         var result = _validator.Validate(new LoginCommand(longEmail, "Some-Password-1"));
 
         Assert.Contains(result.Errors, e => e.PropertyName == nameof(LoginCommand.Email));

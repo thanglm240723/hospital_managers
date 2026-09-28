@@ -167,4 +167,33 @@ public class LoginTests : IAsyncLifetime
         var token = Assert.Single(family.Tokens);
         Assert.NotEqual(client.RefreshToken, token.TokenHash);
     }
+
+    [Fact]
+    public async Task RedisDown_LoginStillSucceeds()
+    {
+        await using var downFactory = await ApiFactory.CreateAsync(
+            _containers, new Dictionary<string, string?> { ["ConnectionStrings:Redis"] = "127.0.0.1:1" });
+        var email = TestData.NewEmail();
+        await TestData.CreateUserAsync(downFactory, email);
+
+        var response = await new AuthTestClient(downFactory.CreateHttpsClient()).LoginAsync(email, TestData.DefaultPassword);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task MalformedJsonBody_Returns400ValidationFailed()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/login")
+        {
+            Content = new StringContent("{ not-valid-json", System.Text.Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Add("Origin", TestConstants.Origin);
+
+        var response = await _factory.CreateHttpsClient().SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await BodyAsync(response);
+        Assert.Equal("validation_failed", body.GetProperty("code").GetString());
+    }
 }
