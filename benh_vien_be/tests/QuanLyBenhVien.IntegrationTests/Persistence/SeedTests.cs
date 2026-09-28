@@ -1,6 +1,6 @@
 using QuanLyBenhVien.Domain.Identity;
-using QuanLyBenhVien.Infrastructure.Persistence;
-using QuanLyBenhVien.Infrastructure.Persistence.Seed;
+using QuanLyBenhVien.Persistence;
+using QuanLyBenhVien.Persistence.Seed;
 using QuanLyBenhVien.IntegrationTests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;

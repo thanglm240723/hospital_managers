@@ -1,4 +1,4 @@
-using QuanLyBenhVien.Infrastructure.Persistence;
+using QuanLyBenhVien.Persistence;
 using QuanLyBenhVien.IntegrationTests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 

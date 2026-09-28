@@ -1,7 +1,7 @@
-using QuanLyBenhVien.Application.Common.Interfaces;
+using QuanLyBenhVien.Application.Common.Security;
 using QuanLyBenhVien.Domain.Identity;
 using QuanLyBenhVien.Infrastructure.Caching;
-using QuanLyBenhVien.Infrastructure.Persistence;
+using QuanLyBenhVien.Persistence;
 using QuanLyBenhVien.IntegrationTests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;

@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using QuanLyBenhVien.Application.Common.Auditing;
 using QuanLyBenhVien.Domain.Common.Auditing;
+using QuanLyBenhVien.Domain.Identity.Sessions;
 using QuanLyBenhVien.Infrastructure.Caching;
 using QuanLyBenhVien.IntegrationTests.Helpers;
 using QuanLyBenhVien.IntegrationTests.Infrastructure;
@@ -142,5 +143,28 @@ public class LoginTests : IAsyncLifetime
         Assert.Equal(int.Parse(jwt.GetClaim("sv").Value), cached.RootElement.GetProperty("sv").GetInt32());
         Assert.True(await TestData.QueryAsync(_factory, db => db.AuditRecords.AnyAsync(a =>
             a.Action == AuditActions.Login && a.ActorId == userId && a.Result == AuditResult.Succeeded)));
+    }
+
+    [Fact]
+    public async Task Success_WritesLastLoginAndOneSessionFamily()
+    {
+        var email = TestData.NewEmail();
+        var userId = await TestData.CreateUserAsync(_factory, email);
+        var before = DateTimeOffset.UtcNow;
+        var client = NewClient();
+
+        (await client.LoginAsync(email, TestData.DefaultPassword)).EnsureSuccessStatusCode();
+
+        var user = await TestData.QueryAsync(_factory, db => db.Users.SingleAsync(u => u.Id == userId));
+        Assert.NotNull(user.LastLoginAt);
+        Assert.True(user.LastLoginAt >= before);
+
+        var families = await TestData.QueryAsync(_factory, db => db.SessionFamilies
+            .Include(f => f.Tokens).Where(f => f.UserId == userId).ToListAsync());
+        var family = Assert.Single(families);
+        Assert.Equal(SessionStatus.Active, family.Status);
+
+        var token = Assert.Single(family.Tokens);
+        Assert.NotEqual(client.RefreshToken, token.TokenHash);
     }
 }

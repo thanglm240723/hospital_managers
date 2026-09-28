@@ -1,11 +1,11 @@
 using QuanLyBenhVien.Domain.Common.Auditing;
 using QuanLyBenhVien.Domain.Identity;
-using QuanLyBenhVien.Infrastructure.Persistence;
+using QuanLyBenhVien.Persistence;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
-namespace QuanLyBenhVien.UnitTests.Infrastructure.Persistence;
+namespace QuanLyBenhVien.UnitTests.Persistence;
 
 public class EntityConfigurationTests
 {

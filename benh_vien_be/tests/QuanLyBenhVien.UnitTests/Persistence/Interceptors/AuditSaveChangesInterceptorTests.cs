@@ -1,17 +1,16 @@
-using QuanLyBenhVien.Application.Common.Interfaces;
+using QuanLyBenhVien.Application.Common.Identity;
 using QuanLyBenhVien.Domain.Common.Auditing;
 using QuanLyBenhVien.Domain.Identity;
-using QuanLyBenhVien.Infrastructure.Persistence.Interceptors;
+using QuanLyBenhVien.Persistence.Interceptors;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
-namespace QuanLyBenhVien.UnitTests.Infrastructure.Persistence.Interceptors;
+namespace QuanLyBenhVien.UnitTests.Persistence.Interceptors;
 
 sealed class FakeCurrentUser : ICurrentUser
 {
     public required Guid? UserId { get; init; }
     public Guid? SessionFamilyId => null;
-    public bool IsAuthenticated => UserId is not null;
 }
 
 sealed class FakeRequestContext : IRequestContext

@@ -18,4 +18,8 @@
     <ProjectReference Include="..\QuanLyBenhVien.Domain\QuanLyBenhVien.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="QuanLyBenhVien.UnitTests" />
+  </ItemGroup>
+
 </Project>

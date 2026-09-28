@@ -1,11 +1,11 @@
 using QuanLyBenhVien.Domain.Exceptions;
 using QuanLyBenhVien.Domain.Identity;
-using QuanLyBenhVien.Infrastructure.Persistence;
-using QuanLyBenhVien.Infrastructure.Repositories;
+using QuanLyBenhVien.Persistence;
+using QuanLyBenhVien.Persistence.Repositories.Identity;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
-namespace QuanLyBenhVien.UnitTests.Infrastructure.Repositories;
+namespace QuanLyBenhVien.UnitTests.Persistence.Repositories;
 
 public class UserRepositoryTests
 {

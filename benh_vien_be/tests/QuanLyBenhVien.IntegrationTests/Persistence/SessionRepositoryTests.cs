@@ -1,6 +1,6 @@
 using QuanLyBenhVien.Domain.Identity;
 using QuanLyBenhVien.Domain.Identity.Sessions;
-using QuanLyBenhVien.Infrastructure.Repositories;
+using QuanLyBenhVien.Persistence.Repositories.Identity;
 using QuanLyBenhVien.IntegrationTests.Helpers;
 using QuanLyBenhVien.IntegrationTests.Infrastructure;
 using Microsoft.EntityFrameworkCore;

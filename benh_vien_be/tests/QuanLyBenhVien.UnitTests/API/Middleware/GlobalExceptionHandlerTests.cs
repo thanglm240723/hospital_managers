@@ -1,12 +1,13 @@
 using System.Text.Json;
-using QuanLyBenhVien.API.Errors;
-using QuanLyBenhVien.Application.Common.Exceptions;
+using FluentValidation;
+using FluentValidation.Results;
+using QuanLyBenhVien.API.Middleware;
 using QuanLyBenhVien.Domain.Exceptions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace QuanLyBenhVien.UnitTests.API.Errors;
+namespace QuanLyBenhVien.UnitTests.API.Middleware;
 
 public class GlobalExceptionHandlerTests
 {
@@ -26,9 +27,9 @@ public class GlobalExceptionHandlerTests
     }
 
     [Fact]
-    public async Task Validation_Returns400WithCamelCaseErrors()
+    public async Task ValidationException_Returns400WithCamelCaseErrors()
     {
-        var (context, body) = await HandleAsync(new ValidationException("CurrentPassword", "Sai"));
+        var (context, body) = await HandleAsync(new ValidationException([new ValidationFailure("CurrentPassword", "Sai")]));
 
         Assert.Equal(400, context.Response.StatusCode);
         Assert.Equal("application/problem+json", context.Response.ContentType);
@@ -38,55 +39,36 @@ public class GlobalExceptionHandlerTests
     }
 
     [Fact]
-    public async Task Unauthorized_Returns401WithMessageAsTitle()
+    public async Task BadHttpRequestException_Returns400ValidationFailed()
     {
-        var (context, body) = await HandleAsync(new UnauthorizedException("Email hoặc mật khẩu không đúng."));
+        var (context, body) = await HandleAsync(new BadHttpRequestException("Failed to read parameter"));
 
-        Assert.Equal(401, context.Response.StatusCode);
-        Assert.Equal("unauthenticated", body.GetProperty("code").GetString());
-        Assert.Equal("Email hoặc mật khẩu không đúng.", body.GetProperty("title").GetString());
+        Assert.Equal(400, context.Response.StatusCode);
+        Assert.Equal("validation_failed", body.GetProperty("code").GetString());
     }
 
     [Fact]
-    public async Task Forbidden_UsesExceptionCode()
-    {
-        var (context, body) = await HandleAsync(new ForbiddenException("csrf_failed", "CSRF"));
-
-        Assert.Equal(403, context.Response.StatusCode);
-        Assert.Equal("csrf_failed", body.GetProperty("code").GetString());
-    }
-
-    [Fact]
-    public async Task NotFound_Returns404WithGenericTitle()
+    public async Task NotFoundException_Returns404WithMessageAsTitle()
     {
         var (context, body) = await HandleAsync(new NotFoundException("User with id 'x' was not found."));
 
         Assert.Equal(404, context.Response.StatusCode);
         Assert.Equal("not_found", body.GetProperty("code").GetString());
-        Assert.DoesNotContain("x", body.GetProperty("title").GetString());
+        Assert.Equal("User with id 'x' was not found.", body.GetProperty("title").GetString());
     }
 
     [Fact]
-    public async Task Conflict_UsesExceptionCode()
+    public async Task BusinessRuleViolationException_Returns409WithMessageAsTitle()
     {
-        var (context, body) = await HandleAsync(new ConflictException("last_admin", "Còn 1 admin"));
+        var (context, body) = await HandleAsync(new BusinessRuleViolationException("Còn 1 admin"));
 
         Assert.Equal(409, context.Response.StatusCode);
-        Assert.Equal("last_admin", body.GetProperty("code").GetString());
+        Assert.Equal("conflict", body.GetProperty("code").GetString());
+        Assert.Equal("Còn 1 admin", body.GetProperty("title").GetString());
     }
 
     [Fact]
-    public async Task TooManyRequests_SetsRetryAfterSeconds()
-    {
-        var (context, body) = await HandleAsync(new TooManyRequestsException(TimeSpan.FromSeconds(89.2), "Chậm lại"));
-
-        Assert.Equal(429, context.Response.StatusCode);
-        Assert.Equal("90", context.Response.Headers.RetryAfter.ToString());
-        Assert.Equal("rate_limited", body.GetProperty("code").GetString());
-    }
-
-    [Fact]
-    public async Task Unknown_Returns500WithoutLeakingMessage()
+    public async Task UnknownException_Returns500WithoutLeakingMessage()
     {
         var (context, body) = await HandleAsync(new InvalidOperationException("SELECT * FROM secret"));
 

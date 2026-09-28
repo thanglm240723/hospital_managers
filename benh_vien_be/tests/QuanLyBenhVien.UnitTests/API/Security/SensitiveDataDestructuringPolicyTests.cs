@@ -1,10 +1,10 @@
-using QuanLyBenhVien.API.Logging;
+using QuanLyBenhVien.API.Security;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
 using Xunit;
 
-namespace QuanLyBenhVien.UnitTests.API.Logging;
+namespace QuanLyBenhVien.UnitTests.API.Security;
 
 sealed class CollectingSink : ILogEventSink
 {

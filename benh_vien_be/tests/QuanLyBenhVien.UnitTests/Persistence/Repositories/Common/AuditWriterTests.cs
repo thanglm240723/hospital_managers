@@ -1,51 +1,44 @@
-using QuanLyBenhVien.Application.Common.Interfaces;
+using QuanLyBenhVien.Application.Common.Identity;
 using QuanLyBenhVien.Domain.Common.Auditing;
-using QuanLyBenhVien.Infrastructure.Auditing;
-using QuanLyBenhVien.Infrastructure.Persistence;
+using QuanLyBenhVien.Persistence;
+using QuanLyBenhVien.Persistence.Repositories.Common;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
-namespace QuanLyBenhVien.UnitTests.Infrastructure.Auditing;
+namespace QuanLyBenhVien.UnitTests.Persistence.Repositories.Common;
 
-sealed class StubCurrentUser : ICurrentUser
+file sealed class StubCurrentUser : ICurrentUser
 {
     public Guid? UserId { get; init; }
     public Guid? SessionFamilyId => null;
-    public bool IsAuthenticated => UserId is not null;
 }
 
-sealed class StubRequestContext : IRequestContext
+file sealed class StubRequestContext : IRequestContext
 {
     public string? CorrelationId => "corr-1";
     public string? IpAddress => "10.0.0.9";
     public string? UserAgent => "UA";
 }
 
-sealed class FixedTimeProvider : TimeProvider
-{
-    private readonly DateTimeOffset _now;
-    public FixedTimeProvider(DateTimeOffset now) => _now = now;
-    public override DateTimeOffset GetUtcNow() => _now;
-}
-
-public class AuditRecorderTests
+public class AuditWriterTests
 {
     private static readonly DateTimeOffset Now = new(2026, 9, 23, 8, 0, 0, TimeSpan.Zero);
 
-    private static (AppDbContext Db, AuditRecorder Recorder) Create(Guid? currentUserId)
+    private static (AppDbContext Db, AuditWriter Writer) Create(Guid? currentUserId)
     {
         var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
-        return (db, new AuditRecorder(db, new StubCurrentUser { UserId = currentUserId }, new StubRequestContext(), new FixedTimeProvider(Now)));
+        var time = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(Now);
+        return (db, new AuditWriter(db, new StubCurrentUser { UserId = currentUserId }, new StubRequestContext(), time));
     }
 
     [Fact]
     public async Task Record_FillsRequestContextAndDefaultsActorToCurrentUser()
     {
         var current = Guid.NewGuid();
-        var (db, recorder) = Create(current);
+        var (db, writer) = Create(current);
 
-        recorder.Record("auth.logout", AuditResult.Succeeded, resourceType: "SessionFamily", resourceId: "f-1");
+        writer.Record("auth.logout", AuditResult.Succeeded, resourceType: "SessionFamily", resourceId: "f-1");
         await db.SaveChangesAsync();
 
         var record = Assert.Single(db.AuditRecords);
@@ -59,9 +52,9 @@ public class AuditRecorderTests
     public async Task Record_ExplicitActorAndMetadata()
     {
         var actor = Guid.NewGuid();
-        var (db, recorder) = Create(currentUserId: null);
+        var (db, writer) = Create(currentUserId: null);
 
-        recorder.Record("auth.login", AuditResult.Failed, "InvalidPassword", actorId: actor,
+        writer.Record("auth.login", AuditResult.Failed, "InvalidPassword", actorId: actor,
             metadata: new Dictionary<string, object?> { ["count"] = 2 });
         await db.SaveChangesAsync();
 
@@ -73,9 +66,9 @@ public class AuditRecorderTests
     [Fact]
     public void Record_OversizedMetadata_Throws()
     {
-        var (_, recorder) = Create(null);
+        var (_, writer) = Create(null);
 
-        Assert.Throws<ArgumentException>(() => recorder.Record("x.y", AuditResult.Succeeded,
+        Assert.Throws<ArgumentException>(() => writer.Record("x.y", AuditResult.Succeeded,
             metadata: new Dictionary<string, object?> { ["blob"] = new string('a', 5000) }));
     }
 }

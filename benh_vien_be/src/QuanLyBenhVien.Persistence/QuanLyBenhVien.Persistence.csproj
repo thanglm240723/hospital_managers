@@ -23,4 +23,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="QuanLyBenhVien.UnitTests" />
+    <InternalsVisibleTo Include="QuanLyBenhVien.IntegrationTests" />
+  </ItemGroup>
+
 </Project>

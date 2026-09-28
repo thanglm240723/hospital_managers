@@ -1,10 +1,10 @@
 using QuanLyBenhVien.Domain.Common;
 using QuanLyBenhVien.Domain.Identity;
-using QuanLyBenhVien.Infrastructure.Persistence;
+using QuanLyBenhVien.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
-namespace QuanLyBenhVien.UnitTests.Infrastructure.Persistence;
+namespace QuanLyBenhVien.UnitTests.Persistence;
 
 public class AppDbContextTests
 {

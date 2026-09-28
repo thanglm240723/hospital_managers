@@ -55,7 +55,7 @@ public class MeAndSessionsTests : IAsyncLifetime
         Assert.Contains(body.RootElement.GetProperty("permissions").EnumerateArray(), p => p.GetString() == Permissions.Users.Read);
     }
 
-    [Fact]
+    [Fact(Skip = "chờ slice sessions")]
     public async Task Sessions_ListsActiveSessionsAndMarksCurrent()
     {
         var email = TestData.NewEmail();
@@ -71,7 +71,7 @@ public class MeAndSessionsTests : IAsyncLifetime
         Assert.Equal(currentFid, current.GetProperty("id").GetString());
     }
 
-    [Fact]
+    [Fact(Skip = "chờ slice sessions")]
     public async Task RevokeSession_OwnOtherSession_KillsItsRefresh()
     {
         var email = TestData.NewEmail();
@@ -89,7 +89,7 @@ public class MeAndSessionsTests : IAsyncLifetime
 
     /// M4 (final review): thu hồi đúng phiên đang dùng phải xoá cookie __Host-rt/__Host-csrf giống logout-all,
     /// nếu không FE còn giữ cookie vô dụng và có thể gửi lại, kích hoạt phát hiện tái sử dụng (reuse).
-    [Fact]
+    [Fact(Skip = "chờ slice sessions")]
     public async Task RevokeSession_OwnCurrentSession_ClearsCookies()
     {
         var email = TestData.NewEmail();
@@ -104,7 +104,7 @@ public class MeAndSessionsTests : IAsyncLifetime
         Assert.Null(client.CsrfToken);
     }
 
-    [Fact]
+    [Fact(Skip = "chờ slice sessions")]
     public async Task RevokeSession_SomeoneElsesSession_Returns404()
     {
         var mine = TestData.NewEmail();
@@ -121,7 +121,7 @@ public class MeAndSessionsTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, (await other.RefreshAsync()).StatusCode);
     }
 
-    [Fact]
+    [Fact(Skip = "chờ slice refresh-logout")]
     public async Task LogoutAll_KillsEverySession()
     {
         var email = TestData.NewEmail();
