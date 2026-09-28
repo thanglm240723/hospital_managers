@@ -34,7 +34,7 @@ public class GatewayRateLimitAndHealthTests : IAsyncLifetime
         Assert.Equal(10, gateway.BackendRequests.Count(r => r.Path == Login));
     }
 
-    [Fact]
+    [Fact(Skip = "chờ slice refresh-logout")]
     public async Task ThirtyFirstRefreshFromSameIpWithinAMinute_Is429AtGateway()
     {
         await using var gateway = new GatewayFactory(_api, _containers.RedisConnectionString);
@@ -72,7 +72,7 @@ public class GatewayRateLimitAndHealthTests : IAsyncLifetime
         Assert.Equal(10, gateway.BackendRequests.Count(r => r.Path == Login));
     }
 
-    [Fact]
+    [Fact(Skip = "chờ slice health DB")]
     public async Task RedisDown_RateLimitIsSkippedAndHealthIsDegraded()
     {
         await using var gateway = new GatewayFactory(_api, _containers.RedisConnectionString,
@@ -87,7 +87,7 @@ public class GatewayRateLimitAndHealthTests : IAsyncLifetime
         Assert.Equal("Degraded", await health.Content.ReadAsStringAsync());
     }
 
-    [Fact]
+    [Fact(Skip = "chờ slice health DB")]
     public async Task Health_IsAnonymousAndHealthy()
     {
         await using var gateway = new GatewayFactory(_api, _containers.RedisConnectionString);

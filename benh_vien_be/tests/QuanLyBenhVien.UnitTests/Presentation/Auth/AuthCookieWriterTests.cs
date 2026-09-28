@@ -18,7 +18,7 @@ public class AuthCookieWriterTests
         writer.Write(context.Response, "refresh-token", "csrf-token", Now.AddDays(7));
 
         var setCookies = context.Response.Headers.SetCookie.ToArray();
-        var refreshCookie = Assert.Single(setCookies, c => c.StartsWith(AuthCookieWriter.RefreshCookie + "=", StringComparison.Ordinal))!;
+        var refreshCookie = Assert.Single(setCookies, c => c!.StartsWith(AuthCookieWriter.RefreshCookie + "=", StringComparison.Ordinal));
         Assert.Contains("httponly", refreshCookie, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("secure", refreshCookie, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("samesite=strict", refreshCookie, StringComparison.OrdinalIgnoreCase);
@@ -35,7 +35,7 @@ public class AuthCookieWriterTests
         writer.Write(context.Response, "refresh-token", "csrf-token", Now.AddDays(7));
 
         var setCookies = context.Response.Headers.SetCookie.ToArray();
-        var csrfCookie = Assert.Single(setCookies, c => c.StartsWith(AuthCookieWriter.CsrfCookie + "=", StringComparison.Ordinal))!;
+        var csrfCookie = Assert.Single(setCookies, c => c!.StartsWith(AuthCookieWriter.CsrfCookie + "=", StringComparison.Ordinal));
         Assert.DoesNotContain("httponly", csrfCookie, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("secure", csrfCookie, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("samesite=strict", csrfCookie, StringComparison.OrdinalIgnoreCase);
@@ -50,7 +50,7 @@ public class AuthCookieWriterTests
         writer.Write(context.Response, "refresh-token", "csrf-token", Now.AddDays(1));
 
         var setCookies = context.Response.Headers.SetCookie.ToArray();
-        var refreshCookie = Assert.Single(setCookies, c => c.StartsWith(AuthCookieWriter.RefreshCookie + "=", StringComparison.Ordinal))!;
+        var refreshCookie = Assert.Single(setCookies, c => c!.StartsWith(AuthCookieWriter.RefreshCookie + "=", StringComparison.Ordinal));
         Assert.Contains("max-age=86400", refreshCookie, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -63,9 +63,9 @@ public class AuthCookieWriterTests
         writer.Clear(context.Response);
 
         var setCookies = context.Response.Headers.SetCookie.ToArray();
-        Assert.Contains(setCookies, c => c.StartsWith(AuthCookieWriter.RefreshCookie + "=", StringComparison.Ordinal));
-        Assert.Contains(setCookies, c => c.StartsWith(AuthCookieWriter.CsrfCookie + "=", StringComparison.Ordinal));
+        Assert.Contains(setCookies, c => c!.StartsWith(AuthCookieWriter.RefreshCookie + "=", StringComparison.Ordinal));
+        Assert.Contains(setCookies, c => c!.StartsWith(AuthCookieWriter.CsrfCookie + "=", StringComparison.Ordinal));
         // Xóa cookie: expires trong quá khứ (Kestrel/CookieOptions dùng Expires khi Delete).
-        Assert.Contains(setCookies, c => c.Contains("expires=", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(setCookies, c => c!.Contains("expires=", StringComparison.OrdinalIgnoreCase));
     }
 }

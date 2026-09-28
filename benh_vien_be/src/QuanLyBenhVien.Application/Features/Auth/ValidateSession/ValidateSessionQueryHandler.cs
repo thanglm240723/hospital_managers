@@ -33,6 +33,6 @@ internal sealed class ValidateSessionQueryHandler(IAuthReadService authRead, ISe
             await sessionCache.SetIfGenerationUnchangedAsync(entry, generation, cancellationToken);
         }
 
-        return new SessionValidationDto(true, state!.UserId, state.AbsoluteExpiresAtUtc);
+        return new SessionValidationDto(true, state!.UserId, state.AbsoluteExpiresAtUtc.ToUnixTimeSeconds());
     }
 }

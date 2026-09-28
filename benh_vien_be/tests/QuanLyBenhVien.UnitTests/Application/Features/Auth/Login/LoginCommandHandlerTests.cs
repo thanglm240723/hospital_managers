@@ -54,11 +54,13 @@ file sealed class FakeSessionRepository : ISessionRepository
 
 file sealed class FakeUnitOfWork : IUnitOfWork
 {
+    public List<string>? Timeline { get; set; }
     public int SaveChangesCallCount { get; private set; }
 
     public Task<int> SaveChangesAsync(CancellationToken ct = default)
     {
         SaveChangesCallCount++;
+        Timeline?.Add("save-changes");
         return Task.FromResult(1);
     }
 
@@ -101,6 +103,7 @@ file sealed class FakeCsrfTokenService : ICsrfTokenService
 
 file sealed class FakeLoginAttemptLimiter : ILoginAttemptLimiter
 {
+    public List<string>? Timeline { get; set; }
     public TimeSpan? LockoutRemaining { get; set; }
     public bool RegisterFailureCalled { get; private set; }
     public bool ResetCalled { get; private set; }
@@ -114,12 +117,14 @@ file sealed class FakeLoginAttemptLimiter : ILoginAttemptLimiter
     public Task ResetAsync(string normalizedEmail, CancellationToken ct = default)
     {
         ResetCalled = true;
+        Timeline?.Add("reset");
         return Task.CompletedTask;
     }
 }
 
 file sealed class FakeSessionCache : ISessionCache
 {
+    public List<string>? Timeline { get; set; }
     public SessionCacheEntry? WrittenEntry { get; private set; }
     public CacheGeneration? WrittenExpected { get; private set; }
 
@@ -129,6 +134,7 @@ file sealed class FakeSessionCache : ISessionCache
     {
         WrittenEntry = entry;
         WrittenExpected = expected;
+        Timeline?.Add("write-cache");
         return Task.CompletedTask;
     }
 }
@@ -155,14 +161,25 @@ file sealed class Fixture
 {
     public static readonly DateTimeOffset Now = new(2026, 9, 28, 8, 0, 0, TimeSpan.Zero);
 
+    /// Dòng thời gian dùng chung giữa các fake ghi sau khi đăng nhập thành công — chứng minh thứ tự
+    /// commit DB TRƯỚC khi làm việc phụ (reset rate limiter, ghi cache), không phải chỉ độc lập đều đã xảy ra.
+    public List<string> Timeline { get; } = [];
+
     public FakeUserRepository Users { get; } = new();
     public FakeSessionRepository Sessions { get; } = new();
-    public FakeUnitOfWork UnitOfWork { get; } = new();
+    public FakeUnitOfWork UnitOfWork { get; }
     public FakePasswordHasher Hasher { get; } = new();
-    public FakeLoginAttemptLimiter Limiter { get; } = new();
-    public FakeSessionCache SessionCache { get; } = new();
+    public FakeLoginAttemptLimiter Limiter { get; }
+    public FakeSessionCache SessionCache { get; }
     public FakeAuditWriter Audit { get; } = new();
     public FakeCsrfTokenService Csrf { get; } = new();
+
+    public Fixture()
+    {
+        UnitOfWork = new FakeUnitOfWork { Timeline = Timeline };
+        Limiter = new FakeLoginAttemptLimiter { Timeline = Timeline };
+        SessionCache = new FakeSessionCache { Timeline = Timeline };
+    }
 
     public LoginCommandHandler CreateHandler() => new(
         Users, Sessions, UnitOfWork, Hasher, new FakeAccessTokenIssuer(), new FakeRefreshTokenGenerator(),
@@ -277,5 +294,9 @@ public class LoginCommandHandlerTests
         Assert.Equal(CacheGeneration.None, f.SessionCache.WrittenExpected);
         Assert.Equal(f.Csrf.CreatedFor, f.Sessions.Added.Id);
         Assert.Single(f.Audit.Calls, c => c.Result == AuditResult.Succeeded);
+
+        // "save-changes" (commit DB: user + session family) phải đứng trước "reset" (rate limiter) và
+        // "write-cache" (Redis) — không được reset/ghi cache trước khi chắc chắn đã commit thành công.
+        Assert.Equal(["save-changes", "reset", "write-cache"], f.Timeline);
     }
 }
