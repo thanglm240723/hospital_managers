@@ -3,6 +3,11 @@ using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using QuanLyBenhVien.Application.Features.Auth.Common;
+using QuanLyBenhVien.Application.Features.Auth.GetMe;
+using QuanLyBenhVien.Application.Features.Auth.Login;
+using QuanLyBenhVien.Presentation.Auth;
+using QuanLyBenhVien.Presentation.Http;
 
 namespace QuanLyBenhVien.Presentation.Endpoints.V1.Auth;
 
@@ -32,8 +37,18 @@ public sealed class AuthEndpoints : ICarterModule
        
     }
 
-    private static Task<IResult> LoginAsync(LoginRequest req, HttpContext http, ISender sender, CancellationToken ct) =>
-        throw new NotImplementedException();
+    private static async Task<IResult> LoginAsync(LoginRequest req, HttpContext http, ISender sender, AuthCookieWriter cookies, CancellationToken ct)
+    {
+        var result = await sender.Send(new LoginCommand(req.Email, req.Password), ct);
+        if (result.IsFailure)
+        {
+            return result.Error!.ToProblem(http);
+        }
+
+        var tokens = result.Value;
+        cookies.Write(http.Response, tokens.RefreshToken, tokens.CsrfToken, tokens.SessionExpiresAtUtc);
+        return Results.Ok(new AccessTokenDto(tokens.AccessToken, tokens.AccessTokenExpiresAtUtc, tokens.MustChangePassword));
+    }
 
     private static Task<IResult> RefreshAsync(HttpContext http, ISender sender, CancellationToken ct) =>
         throw new NotImplementedException();
@@ -41,8 +56,11 @@ public sealed class AuthEndpoints : ICarterModule
     private static Task<IResult> LogoutAsync(HttpContext http, ISender sender, CancellationToken ct) =>
         throw new NotImplementedException();
 
-    private static Task<IResult> MeAsync(ISender sender, CancellationToken ct) =>
-        throw new NotImplementedException();
+    private static async Task<IResult> MeAsync(HttpContext http, ISender sender, CancellationToken ct)
+    {
+        var result = await sender.Send(new GetMeQuery(), ct);
+        return result.IsFailure ? result.Error!.ToProblem(http) : Results.Ok(result.Value);
+    }
 
     private static Task<IResult> ChangePasswordAsync(ChangePasswordRequest req, HttpContext http, ISender sender, CancellationToken ct) =>
         throw new NotImplementedException();

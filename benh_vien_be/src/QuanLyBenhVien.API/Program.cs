@@ -1,18 +1,8 @@
-using System.Net;
-using QuanLyBenhVien.API.Auth;
-using QuanLyBenhVien.API.DependencyInjection;
-using QuanLyBenhVien.API.Errors;
-using QuanLyBenhVien.API.Logging;
+using Carter;
+using QuanLyBenhVien.API.Composition;
 using QuanLyBenhVien.API.Middleware;
-using QuanLyBenhVien.API.Services;
-using QuanLyBenhVien.Application.Common.Exceptions;
-using QuanLyBenhVien.Application.Common.Interfaces;
-using QuanLyBenhVien.Application.DependencyInjection;
-using QuanLyBenhVien.Infrastructure.DependencyInjection;
-using QuanLyBenhVien.Infrastructure.Persistence;
-using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.OpenApi.Models;
+using QuanLyBenhVien.API.Security;
+using QuanLyBenhVien.Persistence;
 using Serilog;
 
 namespace QuanLyBenhVien.API;
@@ -31,51 +21,9 @@ public class Program
             .ReadFrom.Services(services)
             .Destructure.With<SensitiveDataDestructuringPolicy>());
 
-        builder.Services.AddControllers()
-            .AddJsonOptions(options =>
-            {
-                options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
-                options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
-            });
-        builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-        builder.Services.AddProblemDetails();
-        builder.Services.Configure<ApiBehaviorOptions>(options =>
-            options.InvalidModelStateResponseFactory = context =>
-                ProblemResponseWriter.ToResult(context.HttpContext, 400, ErrorCodes.ValidationFailed, "Dữ liệu không hợp lệ.",
-                    context.ModelState.Where(e => e.Value?.Errors.Count > 0)
-                        .ToDictionary(e => e.Key, e => e.Value!.Errors.Select(x => x.ErrorMessage).ToArray())));
-
-        // Chỉ tin X-Forwarded-* từ proxy đã khai báo (mặc định: loopback). Production: thêm IP Gateway vào cấu hình.
-        builder.Services.Configure<ForwardedHeadersOptions>(options =>
-        {
-            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-            foreach (var proxy in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [])
-                options.KnownProxies.Add(IPAddress.Parse(proxy));
-        });
-
-        builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen(c =>
-        {
-            c.SwaggerDoc("v1", new OpenApiInfo
-            {
-                Title = "Clean Architecture CQRS Starter",
-                Version = "v1",
-                Description = "Starter template for Clean Architecture with CQRS and MediatR in ASP.NET Core 10"
-            });
-        });
-
-        builder.Services.AddHttpContextAccessor();
-        builder.Services.AddScoped<ICurrentUser, CurrentUser>();
-        builder.Services.AddScoped<IRequestContext, HttpRequestContext>();
-        builder.Services.AddScoped<AuthCookieWriter>();
-        builder.Services.AddApiAuthentication();
-        builder.Services.AddApiAuthorization();
-
-        builder.Services.AddApplicationServices();
-        builder.Services.AddInfrastructureServices(builder.Configuration);
+        builder.AddApiServices();
 
         var app = builder.Build();
-        await DbInitializer.InitializeAsync(app.Services);
 
         if (app.Environment.IsDevelopment())
         {
@@ -97,12 +45,14 @@ public class Program
             diagnostics.Set("SessionFamilyId", http.User.FindFirst("fid")?.Value);
         });
 
-        app.UseHttpsRedirection();
         app.UseAuthentication();
         app.UseMiddleware<UserLogContextMiddleware>();
         app.UseAuthorization();
-        app.MapControllers();
+
+        app.MapCarter();
         app.MapHealthChecks("/health").AllowAnonymous();
+
+        await app.Services.InitializeDatabaseAsync();
 
         await app.RunAsync();
     }
