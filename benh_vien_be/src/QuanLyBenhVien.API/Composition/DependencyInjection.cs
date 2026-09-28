@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi.Models;
@@ -37,6 +38,11 @@ public static class DependencyInjection
             options.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
             options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
         });
+
+        // Mặc định Minimal API chỉ ném BadHttpRequestException khi bind lỗi (JSON hỏng/thiếu body) ở Development;
+        // ở môi trường khác request bị "nuốt" thành 400 rỗng, không qua GlobalExceptionHandler. Bật ở mọi môi trường
+        // để luôn ra Problem Details (`code: validation_failed`).
+        builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
 
         // Chỉ tin X-Forwarded-* từ proxy đã khai báo (mặc định: loopback). Production: thêm IP Gateway vào cấu hình.
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
