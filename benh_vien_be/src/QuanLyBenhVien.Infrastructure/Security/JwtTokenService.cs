@@ -1,21 +1,25 @@
 using System.Text;
-using QuanLyBenhVien.Application.Common.Interfaces;
-using QuanLyBenhVien.Application.Common.Models;
+using QuanLyBenhVien.Application.Features.Auth.Common;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 
 namespace QuanLyBenhVien.Infrastructure.Security;
 
-public sealed class JwtTokenService : ITokenService
+public sealed class JwtTokenService : IAccessTokenIssuer
 {
     private readonly JwtOptions _options;
+    private readonly TimeProvider _time;
 
-    public JwtTokenService(IOptions<JwtOptions> options) => _options = options.Value;
-
-    public AccessToken CreateAccessToken(Guid userId, Guid sessionFamilyId, int securityVersion)
+    public JwtTokenService(IOptions<JwtOptions> options, TimeProvider time)
     {
-        var now = DateTimeOffset.UtcNow;
+        _options = options.Value;
+        _time = time;
+    }
+
+    public AccessToken Issue(Guid userId, Guid sessionFamilyId, int securityVersion)
+    {
+        var now = _time.GetUtcNow();
         var expires = now.AddMinutes(_options.AccessTokenMinutes);
 
         var descriptor = new SecurityTokenDescriptor

@@ -1,11 +1,11 @@
-using QuanLyBenhVien.Application.Common.Interfaces;
+using QuanLyBenhVien.Application.Features.Auth.Common;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 
 namespace QuanLyBenhVien.Infrastructure.Caching;
 
 /// Chặn tạm theo email chuẩn hoá. Không đổi gì trong DB, nên kẻ xấu không khoá vĩnh viễn được tài khoản người khác.
-public sealed class LoginRateLimiter : ILoginRateLimiter
+public sealed class LoginRateLimiter : ILoginAttemptLimiter
 {
     public const int MaxFailures = 5;
     public static readonly TimeSpan Window = TimeSpan.FromMinutes(15);

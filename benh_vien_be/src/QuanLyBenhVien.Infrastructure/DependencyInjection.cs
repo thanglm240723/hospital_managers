@@ -1,53 +1,27 @@
-using QuanLyBenhVien.Application.Common.Interfaces;
-using QuanLyBenhVien.Domain.Common;
-using QuanLyBenhVien.Domain.Identity;
-using QuanLyBenhVien.Domain.Identity.Sessions;
-using QuanLyBenhVien.Infrastructure.Auditing;
+using QuanLyBenhVien.Application.Common.Caching;
+using QuanLyBenhVien.Application.Common.Security;
+using QuanLyBenhVien.Application.Features.Auth.Common;
 using QuanLyBenhVien.Infrastructure.Caching;
 using QuanLyBenhVien.Infrastructure.HealthChecks;
-using QuanLyBenhVien.Infrastructure.Identity;
-using QuanLyBenhVien.Infrastructure.Persistence;
-using QuanLyBenhVien.Infrastructure.Persistence.Interceptors;
-using QuanLyBenhVien.Infrastructure.Persistence.Seed;
-using QuanLyBenhVien.Infrastructure.Repositories;
 using QuanLyBenhVien.Infrastructure.Security;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
-namespace QuanLyBenhVien.Infrastructure.DependencyInjection;
+namespace QuanLyBenhVien.Infrastructure;
 
 /// <summary>
-/// Extension methods for registering Infrastructure layer services.
+/// Đăng ký adapter bảo mật và Redis của layer Infrastructure.
 /// </summary>
-public static class InfrastructureServiceExtensions
+public static class DependencyInjection
 {
     /// Trùng CsrfTokenService.MinKeyLength — khoá HMAC dưới ngưỡng này coi như không cấu hình.
     private const int MinKeyLength = 32;
 
-    public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddScoped<AuditSaveChangesInterceptor>();
-
-        services.AddDbContext<AppDbContext>((sp, opt) =>
-        {
-            opt.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
-            opt.AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>());
-        });
-
-        services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<AppDbContext>());
-        services.AddScoped<IAuditRecorder, AuditRecorder>();
-        services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<IRoleRepository, RoleRepository>();
-        services.AddScoped<ISessionRepository, SessionRepository>();
-        services.AddScoped<IIdentityReadService, IdentityReadService>();
-        services.AddScoped<ISessionValidationService, SessionValidationService>();
-        services.AddScoped<IPasswordHasher, PasswordHasher>();
-        services.AddScoped<ITokenService, JwtTokenService>();
         // ValidateOnStart: một SigningKey rỗng/ngắn trước đây chỉ lộ ra ở request đầu tiên (500). Thất bại
         // ngay khi host khởi động thì an toàn hơn nhiều so với để lọt ra production rồi mới phát hiện.
         services.AddOptions<JwtOptions>()
@@ -67,12 +41,8 @@ public static class InfrastructureServiceExtensions
             .ValidateOnStart();
         services.PostConfigure<AuthOptions>(o =>
             o.AllowedOrigins = o.AllowedOrigins.Where(origin => !string.IsNullOrWhiteSpace(origin)).ToArray());
-        services.AddSingleton<IRefreshTokenGenerator, RefreshTokenGenerator>();
-        services.AddSingleton<ICsrfTokenService, CsrfTokenService>();
 
         services.TryAddSingleton(TimeProvider.System);
-        services.Configure<SeedOptions>(configuration.GetSection("Seed"));
-        services.AddScoped<IdentitySeeder>();
 
         services.AddSingleton<IConnectionMultiplexer>(_ =>
         {
@@ -85,15 +55,14 @@ public static class InfrastructureServiceExtensions
         });
 
         services.AddHealthChecks()
-            .AddCheck<DatabaseHealthCheck>("database")
             .AddCheck<RedisHealthCheck>("redis", failureStatus: HealthStatus.Degraded);
 
+        services.AddScoped<IPasswordHasher, PasswordHasher>();
+        services.AddScoped<IAccessTokenIssuer, JwtTokenService>();
+        services.AddSingleton<IRefreshTokenGenerator, RefreshTokenGenerator>();
+        services.AddSingleton<ICsrfTokenService, CsrfTokenService>();
         services.AddSingleton<ISessionCache, SessionCache>();
-        services.AddSingleton<ILoginRateLimiter, LoginRateLimiter>();
-        services.AddScoped<ICacheInvalidator, CacheInvalidator>();
-        services.AddScoped<IPermissionService, PermissionService>();
-        services.AddScoped<CacheInvalidationProcessor>();
-        services.AddHostedService<CacheInvalidationWorker>();
+        services.AddSingleton<ILoginAttemptLimiter, LoginRateLimiter>();
 
         return services;
     }

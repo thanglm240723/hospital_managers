@@ -1,4 +1,4 @@
-using QuanLyBenhVien.Application.Common.Interfaces;
+using QuanLyBenhVien.Application.Common.Security;
 using QuanLyBenhVien.Domain.Identity;
 using Microsoft.AspNetCore.Identity;
 

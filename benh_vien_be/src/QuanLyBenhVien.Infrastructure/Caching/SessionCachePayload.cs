@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using QuanLyBenhVien.Application.Common.Models;
 
 namespace QuanLyBenhVien.Infrastructure.Caching;
 
@@ -12,7 +11,4 @@ internal sealed record SessionCachePayload(
 {
     public static string Serialize(Guid userId, int securityVersion, DateTimeOffset absoluteExpiresAtUtc)
         => JsonSerializer.Serialize(new SessionCachePayload(userId, securityVersion, absoluteExpiresAtUtc.ToUnixTimeSeconds()));
-
-    public static string Serialize(SessionCacheEntry entry)
-        => Serialize(entry.UserId, entry.SecurityVersion, entry.AbsoluteExpiresAtUtc);
 }

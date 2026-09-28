@@ -7,18 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.12" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.12" />
     <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.12" />
     <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.22.0" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageReference Include="StackExchange.Redis" Version="3.3.1" />
   </ItemGroup>
 
@@ -27,8 +19,14 @@
     <ProjectReference Include="..\QuanLyBenhVien.Application\QuanLyBenhVien.Application.csproj" />
   </ItemGroup>
 
+  <!-- Chờ slice logout/phân quyền/health: mã cũ phụ thuộc AppDbContext/port cũ, chưa build được với khung mới. -->
   <ItemGroup>
-    <Folder Include="NewFolder\" />
+    <Compile Remove="Identity\PermissionService.cs" /> <!-- chờ slice phân quyền -->
+    <Compile Remove="Identity\PermissionCachePayload.cs" /> <!-- chờ slice phân quyền -->
+    <Compile Remove="Caching\CacheInvalidator.cs" /> <!-- chờ slice logout -->
+    <Compile Remove="Caching\CacheInvalidationProcessor.cs" /> <!-- chờ slice logout -->
+    <Compile Remove="Caching\CacheInvalidationWorker.cs" /> <!-- chờ slice logout -->
+    <Compile Remove="HealthChecks\DatabaseHealthCheck.cs" /> <!-- chờ slice health -->
   </ItemGroup>
 
 </Project>

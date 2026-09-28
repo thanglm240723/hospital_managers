@@ -1,8 +1,7 @@
 using System.Buffers.Text;
 using System.Security.Cryptography;
 using System.Text;
-using QuanLyBenhVien.Application.Common.Interfaces;
-using QuanLyBenhVien.Application.Common.Models;
+using QuanLyBenhVien.Application.Features.Auth.Common;
 
 namespace QuanLyBenhVien.Infrastructure.Security;
 

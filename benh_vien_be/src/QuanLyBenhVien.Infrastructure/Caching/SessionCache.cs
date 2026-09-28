@@ -1,5 +1,4 @@
-using QuanLyBenhVien.Application.Common.Interfaces;
-using QuanLyBenhVien.Application.Common.Models;
+using QuanLyBenhVien.Application.Common.Caching;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 
@@ -18,14 +17,34 @@ public sealed class SessionCache : ISessionCache
         _logger = logger;
     }
 
-    public async Task SetAsync(SessionCacheEntry entry, CancellationToken ct = default)
+    public async Task<CacheGeneration?> ReadGenerationAsync(Guid sessionFamilyId, CancellationToken ct = default)
+    {
+        try
+        {
+            var db = _redis.GetDatabase();
+            var value = await GuardedCacheWrite.ReadGenerationAsync(db, CacheKeys.Session(sessionFamilyId));
+            return new CacheGeneration(value.IsNull ? null : (string?)value);
+        }
+        catch (Exception ex) when (RedisFailure.Is(ex))
+        {
+            _logger.LogWarning(ex, "Could not read session cache generation {SessionFamilyId}", sessionFamilyId);
+            return null;
+        }
+    }
+
+    public async Task SetIfGenerationUnchangedAsync(SessionCacheEntry entry, CacheGeneration expected, CancellationToken ct = default)
     {
         var ttl = entry.AbsoluteExpiresAtUtc - _time.GetUtcNow();
         if (ttl <= TimeSpan.Zero) return;
         try
         {
-            await _redis.GetDatabase().StringSetAsync(
-                CacheKeys.Session(entry.SessionFamilyId), SessionCachePayload.Serialize(entry), ttl);
+            var db = _redis.GetDatabase();
+            await GuardedCacheWrite.SetIfUnchangedAsync(
+                db,
+                CacheKeys.Session(entry.SessionFamilyId),
+                SessionCachePayload.Serialize(entry.UserId, entry.SecurityVersion, entry.AbsoluteExpiresAtUtc),
+                expected.Value is null ? RedisValue.Null : expected.Value,
+                ttl);
         }
         catch (Exception ex) when (RedisFailure.Is(ex))
         {
