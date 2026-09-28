@@ -1,9 +1,9 @@
 using FluentValidation;
 using MediatR;
 
-namespace KhoHoSo.Application.Behaviors;
+namespace QuanLyBenhVien.Application.Behaviors;
 
-public sealed class ValidationBehavior<TRequest, TResponse>(IEnumerable<IValidator<TRequest>> validators)
+internal sealed class ValidationBehavior<TRequest, TResponse>(IEnumerable<IValidator<TRequest>> validators)
     : IPipelineBehavior<TRequest, TResponse>
     where TRequest : notnull
 {

@@ -100,10 +100,10 @@ public sealed class User : AggregateRoot<Guid>, IAuditable
         Raise(new UserActivatedDomainEvent(Id));
     }
 
-    public void RecordLogin()
+    public void RecordLogin(DateTimeOffset now)
     {
-        LastLoginAt = DateTimeOffset.UtcNow;
-        Touch();
+        LastLoginAt = now;
+        UpdatedAt = now;
     }
 
     public bool HasRole(Guid roleId) => _roleAssignments.Any(r => r.RoleId == roleId);
