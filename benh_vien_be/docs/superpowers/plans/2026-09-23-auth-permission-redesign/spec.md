@@ -24,7 +24,7 @@
 | D10 | Thu hồi phiên | Gateway đọc `session:{familyId}` ở Redis; miss/lỗi → hỏi BE `/internal/sessions/validate` (DB) |
 | D11 | Redis sập | **Rơi về DB**, hệ thống chậm nhưng vẫn chạy; health check `Degraded` |
 | D12 | Quyền cho FE | JWT không chứa role/permission; FE lấy qua `GET /auth/me` |
-| D13 | Rate limit | Theo IP ở **Gateway**; theo email ở **BE** (5 lần sai/15 phút → 429, không khoá DB) |
+| D13 | Rate limit | Theo IP ở **Gateway**. Bộ đếm theo email ở BE (`rl:email`, 5 lần sai/15 phút → 429) đã bị **gỡ bỏ** (quyết định 2026-09-30, spec V2 §2 mục 8) — login khoá hàng `User` (FOR UPDATE) và kiểm lại hash/IsActive sau khoá thay cho đếm số lần sai; BE không còn trả 429 |
 | D14 | Audit | 2 bảng: `AuditLogs` (diff dữ liệu, giữ) + `AuditRecords` (truy cập/bảo mật, mới). **Bỏ** `UserLoginHistories` |
 | D15 | Logging | Serilog: Console text + File CompactJson + **Seq** |
 | D16 | Seed | 9 role theo đặc tả nghiệp vụ; spec này chỉ định nghĩa permission của IdentityAccess |
@@ -75,7 +75,7 @@ FE và Gateway **cùng origin** (§4.1 MVP). BE không được truy cập trự
 | `session:{familyId}` | `{ userId, sv, absExp }` | = `AbsoluteExpiresAtUtc` | BE |
 | `perm:{userId}` | `{ permissions: string[], mustChangePassword: bool }` | không | BE (khi cache miss) |
 | `rl:ip:{route}:{ip}` | bộ đếm fixed window | = cửa sổ | Gateway |
-| `rl:email:{sha256(emailChuẩnHoá)}` | số lần sai | 15 phút | BE |
+| ~~`rl:email:{sha256(emailChuẩnHoá)}`~~ | đã gỡ bỏ (quyết định 2026-09-30, spec V2 §2 mục 8) — login khoá hàng `User` thay cho đếm số lần sai | — | — |
 
 ### 1.2 JWT
 
@@ -180,9 +180,9 @@ Endpoint dùng cookie (`/refresh`, `/logout`) và các endpoint thay đổi phi�
 
 1. Gateway: rate limit IP (§4.4).
 2. BE: validator (email đúng định dạng, password không rỗng — **không** kiểm độ mạnh).
-3. `rl:email` ≥ 5 → **429** `rate_limited` (message chung, `Retry-After`) + AuditRecord `auth.rate_limited`.
-4. Không có user / `IsActive = false` / sai mật khẩu → tăng `rl:email` (TTL 15 phút từ lần sai đầu), AuditRecord `auth.login` `Failed` (Reason `EmailNotFound`/`AccountInactive`/`InvalidPassword`, ActorId = userId nếu có), **commit**, trả **401** `"Email hoặc mật khẩu không đúng."` — message giống hệt cho cả 3 nhánh.
-5. Đúng: xoá `rl:email`; trong **1 transaction**: `user.RecordLogin()`, `SessionFamily.Start(...)`, AuditRecord `auth.login` `Succeeded`; commit **một lần**.
+3. Định vị user theo email (không khoá); trong **1 transaction**: khoá hàng `User` (FOR UPDATE) rồi kiểm lại hash/`IsActive` trên dữ liệu mới nhất đã commit (không còn bộ đếm `rl:email`/429 — quyết định 2026-09-30, spec V2 §2 mục 8).
+4. Không có user / `IsActive = false` / sai mật khẩu → AuditRecord `auth.login` `Failed` (Reason `EmailNotFound`/`AccountInactive`/`InvalidPassword`, ActorId = userId nếu có), **commit**, trả **401** `"Email hoặc mật khẩu không đúng."` — message giống hệt cho cả 3 nhánh.
+5. Đúng: cùng transaction ở bước 3: `user.RecordLogin()`, `SessionFamily.Start(...)`, AuditRecord `auth.login` `Succeeded`; commit **một lần**.
 6. Sau commit: ghi `session:{fid}` vào Redis (lỗi → log Warning, không fail request).
 7. `200 { accessToken, expiresAtUtc, mustChangePassword }` + `Set-Cookie` `__Host-rt`, `__Host-csrf`.
 
@@ -365,7 +365,8 @@ Interceptor giữ nguyên, thêm `CorrelationId`; bỏ qua property `PasswordHas
 
 **Integration** (project mới `CleanArchCqrs.IntegrationTests`, **Testcontainers PostgreSQL + Redis**, `WebApplicationFactory`; không dùng EF InMemory làm bằng chứng — §14.1)
 - Login đúng/sai/không tồn tại/khoá → message 401 giống hệt; AuditRecord đúng Reason.
-- 5 lần sai → lần 6 trả 429.
+- Bộ đếm khoá tạm theo email đã bị gỡ bỏ (quyết định 2026-09-30) — không còn ca "5 lần sai → lần 6 trả 429" ở BE;
+  chỉ còn rate limit IP ở Gateway.
 - Refresh rotation; **2 refresh đồng thời cùng token → đúng 1 thành công, family bị revoke** (strict reuse).
 - Token cũ trình lại → family bị revoke, AuditRecord `auth.refresh.reuse` còn sau khi trả 401.
 - Refresh không vượt hạn family.

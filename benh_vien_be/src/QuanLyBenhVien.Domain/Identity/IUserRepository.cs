@@ -2,11 +2,15 @@ namespace QuanLyBenhVien.Domain.Identity
 {
     public interface IUserRepository 
     {
-        /// Nạp user theo email. Trả về instance CÓ TRACKING vì handler login
-        /// sẽ gọi RecordLogin() rồi save.
-        Task<User?> GetByEmailAsync(string email, CancellationToken ct = default);    
-        /// Nạp user theo ID   
+        /// Nạp user theo email — chỉ để định vị Id (KHÔNG tracking). Muốn sửa thì khoá bằng
+        /// GetForUpdateAsync trong transaction rồi nạp lại instance tracking.
+        Task<User?> GetByEmailAsync(string email, CancellationToken ct = default);
+        /// Nạp user theo ID
         Task<User> GetUserByIdAsync(Guid id, CancellationToken ct = default);
+
+        /// Khoá hàng user (FOR UPDATE), nạp lại instance CÓ TRACKING với dữ liệu mới nhất đã commit.
+        /// PHẢI gọi bên trong transaction (IUnitOfWork.BeginTransactionAsync) — khoá tự nhả khi transaction commit/rollback.
+        Task<User?> GetForUpdateAsync(Guid id, CancellationToken ct = default);
 
         Task AddUserAsync(User user, CancellationToken ct = default);
         //update trả void chứ ko phải task<User> vì ko cần trả về user

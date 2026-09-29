@@ -24,7 +24,7 @@ public static class TestData
         var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
 
         var user = User.Create("Test User", email, hasher.Hash(password), null);
-        if (!mustChangePassword) user.ChangePassword(hasher.Hash(password));
+        if (!mustChangePassword) user.ChangePassword(hasher.Hash(password), DateTimeOffset.UtcNow);
         if (roleCodes.Length > 0)
         {
             var roleIds = await db.Roles.Where(r => roleCodes.Contains(r.Code)).Select(r => r.Id).ToListAsync();

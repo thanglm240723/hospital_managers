@@ -62,7 +62,6 @@ public static class DependencyInjection
         services.AddSingleton<IRefreshTokenGenerator, RefreshTokenGenerator>();
         services.AddSingleton<ICsrfTokenService, CsrfTokenService>();
         services.AddSingleton<ISessionCache, SessionCache>();
-        services.AddSingleton<ILoginAttemptLimiter, LoginRateLimiter>();
 
         return services;
     }

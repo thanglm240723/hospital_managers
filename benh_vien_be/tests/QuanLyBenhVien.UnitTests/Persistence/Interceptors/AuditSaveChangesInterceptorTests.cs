@@ -11,6 +11,7 @@ sealed class FakeCurrentUser : ICurrentUser
 {
     public required Guid? UserId { get; init; }
     public Guid? SessionFamilyId => null;
+    public int? SecurityVersion => null;
 }
 
 sealed class FakeRequestContext : IRequestContext

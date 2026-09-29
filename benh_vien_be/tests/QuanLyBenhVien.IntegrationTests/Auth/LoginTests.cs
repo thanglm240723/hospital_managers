@@ -101,22 +101,6 @@ public class LoginTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task FiveFailures_SixthAttemptIsRateLimited()
-    {
-        var email = TestData.NewEmail();
-        await TestData.CreateUserAsync(_factory, email);
-
-        for (var i = 0; i < 5; i++)
-            Assert.Equal(HttpStatusCode.Unauthorized, (await NewClient().LoginAsync(email, "Wrong-Password-1")).StatusCode);
-
-        var response = await NewClient().LoginAsync(email, TestData.DefaultPassword);   // kể cả đúng mật khẩu
-
-        Assert.Equal(HttpStatusCode.TooManyRequests, response.StatusCode);
-        Assert.True(int.Parse(response.Headers.GetValues("Retry-After").Single()) > 0);
-        Assert.Equal("rate_limited", (await BodyAsync(response)).GetProperty("code").GetString());
-    }
-
-    [Fact]
     public async Task EmptyFields_Return400WithFieldErrors()
     {
         var response = await NewClient().LoginAsync("", "");

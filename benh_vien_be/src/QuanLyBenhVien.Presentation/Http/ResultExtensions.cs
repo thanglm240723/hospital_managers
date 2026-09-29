@@ -25,6 +25,6 @@ public static class ResultExtensions
             http.Response.Headers.RetryAfter = seconds.ToString();
         }
 
-        return ProblemResponses.Create(http, status, error.Code, error.Message);
+        return ProblemResponses.Create(http, status, error.Code, error.Message, error.FieldErrors);
     }
 }

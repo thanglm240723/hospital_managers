@@ -1,5 +1,4 @@
 using QuanLyBenhVien.Application.Common.Caching;
-using QuanLyBenhVien.Application.Features.Auth.Common;
 using QuanLyBenhVien.Infrastructure.Caching;
 using QuanLyBenhVien.IntegrationTests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,13 +7,12 @@ using Xunit;
 
 namespace QuanLyBenhVien.IntegrationTests.Caching;
 
-/// Viết lại (không chuyển) từ `RedisServicesTests.cs` (khung cũ, `ISessionCache.SetAsync`/`ILoginRateLimiter`)
-/// theo port mới `ISessionCache.SetIfGenerationUnchangedAsync`/`ILoginAttemptLimiter` (Application.Common.Caching,
-/// Features.Auth.Common). Chỉ phủ LoginRateLimiter và SessionCache — CacheInvalidator/worker chờ slice riêng.
+/// Viết lại (không chuyển) từ `RedisServicesTests.cs` (khung cũ, `ISessionCache.SetAsync`) theo port mới
+/// `ISessionCache.SetIfGenerationUnchangedAsync` (Application.Common.Caching). Bộ đếm khoá tạm theo email
+/// (`ILoginAttemptLimiter`/`LoginRateLimiter`) đã bị gỡ bỏ (quyết định 2026-09-30) — chỉ còn phủ SessionCache.
 [Collection(IntegrationCollection.Name)]
 public class LoginAndSessionCacheTests
 {
-    private static readonly Dictionary<string, string?> RedisDown = new() { ["ConnectionStrings:Redis"] = "127.0.0.1:1" };
     private readonly ContainersFixture _containers;
 
     public LoginAndSessionCacheTests(ContainersFixture containers) => _containers = containers;
@@ -23,35 +21,6 @@ public class LoginAndSessionCacheTests
         => ApiFactory.CreateAsync(_containers, overrides);
 
     private static IDatabase Redis(ApiFactory f) => f.Services.GetRequiredService<IConnectionMultiplexer>().GetDatabase();
-
-    [Fact]
-    public async Task LoginRateLimiter_LocksAfterFiveFailuresAndResetClears()
-    {
-        await using var factory = await CreateAsync();
-        var limiter = factory.Services.GetRequiredService<ILoginAttemptLimiter>();
-        var email = $"rl-{Guid.NewGuid():N}@test.local";
-
-        for (var i = 0; i < 4; i++) await limiter.RegisterFailureAsync(email);
-        Assert.Null(await limiter.GetLockoutRemainingAsync(email));
-
-        await limiter.RegisterFailureAsync(email);
-        Assert.InRange((await limiter.GetLockoutRemainingAsync(email))!.Value, TimeSpan.FromMinutes(14), TimeSpan.FromMinutes(15));
-
-        await limiter.ResetAsync(email);
-        Assert.Null(await limiter.GetLockoutRemainingAsync(email));
-    }
-
-    [Fact]
-    public async Task LoginRateLimiter_RedisDown_NeverLocks()
-    {
-        await using var factory = await CreateAsync(RedisDown);
-        var limiter = factory.Services.GetRequiredService<ILoginAttemptLimiter>();
-        var email = $"rl-{Guid.NewGuid():N}@test.local";
-
-        for (var i = 0; i < 6; i++) await limiter.RegisterFailureAsync(email);
-
-        Assert.Null(await limiter.GetLockoutRemainingAsync(email));
-    }
 
     [Fact]
     public async Task SessionCache_SetIfGenerationUnchanged_WritesWhenNoGenerationKeyExists()

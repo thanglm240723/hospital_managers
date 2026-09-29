@@ -18,10 +18,17 @@ file sealed class FakeUserRepository : IUserRepository
 {
     public User? User { get; set; }
     public bool GetByEmailCalled { get; private set; }
+    public bool GetForUpdateCalled { get; private set; }
 
     public Task<User?> GetByEmailAsync(string email, CancellationToken ct = default)
     {
         GetByEmailCalled = true;
+        return Task.FromResult(User);
+    }
+
+    public Task<User?> GetForUpdateAsync(Guid id, CancellationToken ct = default)
+    {
+        GetForUpdateCalled = true;
         return Task.FromResult(User);
     }
 
@@ -52,10 +59,26 @@ file sealed class FakeSessionRepository : ISessionRepository
     }
 }
 
+file sealed class FakeTransaction : IUnitOfWorkTransaction
+{
+    public List<string>? Timeline { get; set; }
+    public bool Committed { get; private set; }
+
+    public Task CommitAsync(CancellationToken ct = default)
+    {
+        Committed = true;
+        Timeline?.Add("commit-transaction");
+        return Task.CompletedTask;
+    }
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
+
 file sealed class FakeUnitOfWork : IUnitOfWork
 {
     public List<string>? Timeline { get; set; }
     public int SaveChangesCallCount { get; private set; }
+    public FakeTransaction? Transaction { get; private set; }
 
     public Task<int> SaveChangesAsync(CancellationToken ct = default)
     {
@@ -65,7 +88,10 @@ file sealed class FakeUnitOfWork : IUnitOfWork
     }
 
     public Task<IUnitOfWorkTransaction> BeginTransactionAsync(CancellationToken ct = default)
-        => throw new NotSupportedException("LoginCommandHandler không dùng transaction tường minh.");
+    {
+        Transaction = new FakeTransaction { Timeline = Timeline };
+        return Task.FromResult<IUnitOfWorkTransaction>(Transaction);
+    }
 }
 
 file sealed class FakePasswordHasher : IPasswordHasher
@@ -99,27 +125,6 @@ file sealed class FakeCsrfTokenService : ICsrfTokenService
         return "csrf-token";
     }
     public bool IsValid(Guid sessionFamilyId, string? token) => true;
-}
-
-file sealed class FakeLoginAttemptLimiter : ILoginAttemptLimiter
-{
-    public List<string>? Timeline { get; set; }
-    public TimeSpan? LockoutRemaining { get; set; }
-    public bool RegisterFailureCalled { get; private set; }
-    public bool ResetCalled { get; private set; }
-
-    public Task<TimeSpan?> GetLockoutRemainingAsync(string normalizedEmail, CancellationToken ct = default) => Task.FromResult(LockoutRemaining);
-    public Task RegisterFailureAsync(string normalizedEmail, CancellationToken ct = default)
-    {
-        RegisterFailureCalled = true;
-        return Task.CompletedTask;
-    }
-    public Task ResetAsync(string normalizedEmail, CancellationToken ct = default)
-    {
-        ResetCalled = true;
-        Timeline?.Add("reset");
-        return Task.CompletedTask;
-    }
 }
 
 file sealed class FakeSessionCache : ISessionCache
@@ -162,14 +167,13 @@ file sealed class Fixture
     public static readonly DateTimeOffset Now = new(2026, 9, 28, 8, 0, 0, TimeSpan.Zero);
 
     /// Dòng thời gian dùng chung giữa các fake ghi sau khi đăng nhập thành công — chứng minh thứ tự
-    /// commit DB TRƯỚC khi làm việc phụ (reset rate limiter, ghi cache), không phải chỉ độc lập đều đã xảy ra.
+    /// commit transaction TRƯỚC khi ghi cache (làm việc phụ), không phải chỉ độc lập đều đã xảy ra.
     public List<string> Timeline { get; } = [];
 
     public FakeUserRepository Users { get; } = new();
     public FakeSessionRepository Sessions { get; } = new();
     public FakeUnitOfWork UnitOfWork { get; }
     public FakePasswordHasher Hasher { get; } = new();
-    public FakeLoginAttemptLimiter Limiter { get; }
     public FakeSessionCache SessionCache { get; }
     public FakeAuditWriter Audit { get; } = new();
     public FakeCsrfTokenService Csrf { get; } = new();
@@ -177,39 +181,21 @@ file sealed class Fixture
     public Fixture()
     {
         UnitOfWork = new FakeUnitOfWork { Timeline = Timeline };
-        Limiter = new FakeLoginAttemptLimiter { Timeline = Timeline };
         SessionCache = new FakeSessionCache { Timeline = Timeline };
     }
 
     public LoginCommandHandler CreateHandler() => new(
         Users, Sessions, UnitOfWork, Hasher, new FakeAccessTokenIssuer(), new FakeRefreshTokenGenerator(),
-        Csrf, Limiter, SessionCache, Audit, new FakeRequestContext(), new FakeTimeProvider(Now));
+        Csrf, SessionCache, Audit, new FakeRequestContext(), new FakeTimeProvider(Now));
 }
 
 public class LoginCommandHandlerTests
 {
     private static readonly DateTimeOffset Now = Fixture.Now;
 
-    // (a) bị chặn bởi rate limiter
+    // (a) email không tồn tại — không mở transaction, không khoá hàng
     [Fact]
-    public async Task LockedOut_ReturnsTooManyAttempts_AuditsRateLimited_DoesNotLookUpUser()
-    {
-        var f = new Fixture();
-        f.Limiter.LockoutRemaining = TimeSpan.FromMinutes(10);
-
-        var result = await f.CreateHandler().Handle(new LoginCommand("a@b.vn", "pw"), CancellationToken.None);
-
-        Assert.True(result.IsFailure);
-        Assert.Equal("rate_limited", result.Error!.Code);
-        Assert.Equal(TimeSpan.FromMinutes(10), result.Error.RetryAfter);
-        Assert.Single(f.Audit.Calls, c => c.Action == AuditActions.RateLimited && c.Result == AuditResult.Denied);
-        Assert.Equal(1, f.UnitOfWork.SaveChangesCallCount);
-        Assert.False(f.Users.GetByEmailCalled);
-    }
-
-    // (b) email không tồn tại
-    [Fact]
-    public async Task UnknownEmail_SimulatesVerify_RegistersFailure_AuditsWithNullActor()
+    public async Task UnknownEmail_SimulatesVerify_AuditsWithNullActor_DoesNotOpenTransaction()
     {
         var f = new Fixture();
         f.Users.User = null;
@@ -219,16 +205,17 @@ public class LoginCommandHandlerTests
         Assert.True(result.IsFailure);
         Assert.Equal("unauthenticated", result.Error!.Code);
         Assert.True(f.Hasher.SimulateVerifyCalled);
-        Assert.True(f.Limiter.RegisterFailureCalled);
         var call = Assert.Single(f.Audit.Calls);
         Assert.Equal("EmailNotFound", call.Reason);
         Assert.Null(call.ActorId);
         Assert.Equal(1, f.UnitOfWork.SaveChangesCallCount);
+        Assert.Null(f.UnitOfWork.Transaction);
+        Assert.False(f.Users.GetForUpdateCalled);
     }
 
-    // (c) sai mật khẩu
+    // (b) sai mật khẩu — vẫn khoá hàng rồi mới kiểm tra lại, commit transaction trước khi trả lỗi
     [Fact]
-    public async Task WrongPassword_AuditsWithActorId()
+    public async Task WrongPassword_LocksRowThenAuditsWithActorId_CommitsTransaction()
     {
         var f = new Fixture();
         var user = User.Create("A", "a@b.vn", "hash", null);
@@ -238,12 +225,14 @@ public class LoginCommandHandlerTests
         var result = await f.CreateHandler().Handle(new LoginCommand("a@b.vn", "wrong"), CancellationToken.None);
 
         Assert.True(result.IsFailure);
+        Assert.True(f.Users.GetForUpdateCalled);
         var call = Assert.Single(f.Audit.Calls);
         Assert.Equal("InvalidPassword", call.Reason);
         Assert.Equal(user.Id, call.ActorId);
+        Assert.True(f.UnitOfWork.Transaction!.Committed);
     }
 
-    // (d) tài khoản khoá + đúng mật khẩu
+    // (c) tài khoản khoá + đúng mật khẩu
     [Fact]
     public async Task InactiveAccount_CorrectPassword_ReasonIsAccountInactive()
     {
@@ -258,7 +247,7 @@ public class LoginCommandHandlerTests
         Assert.Equal("AccountInactive", Assert.Single(f.Audit.Calls).Reason);
     }
 
-    // (e) tài khoản khoá + sai mật khẩu -> vẫn báo sai mật khẩu (không lộ trạng thái khoá trước)
+    // (d) tài khoản khoá + sai mật khẩu -> vẫn báo sai mật khẩu (không lộ trạng thái khoá trước)
     [Fact]
     public async Task InactiveAccount_WrongPassword_ReasonIsInvalidPassword()
     {
@@ -273,9 +262,9 @@ public class LoginCommandHandlerTests
         Assert.Equal("InvalidPassword", Assert.Single(f.Audit.Calls).Reason);
     }
 
-    // (f) thành công
+    // (e) thành công
     [Fact]
-    public async Task Success_SavesOnce_RecordsLastLogin_ResetsLimiterAndWritesCache_AfterCommit()
+    public async Task Success_LocksRowSavesOnce_RecordsLastLogin_WritesCacheAfterCommit()
     {
         var f = new Fixture();
         var user = User.Create("A", "a@b.vn", "hash", null);
@@ -285,18 +274,18 @@ public class LoginCommandHandlerTests
         var result = await f.CreateHandler().Handle(new LoginCommand("a@b.vn", "correct"), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
+        Assert.True(f.Users.GetForUpdateCalled);
         Assert.Equal(1, f.UnitOfWork.SaveChangesCallCount);
         Assert.Equal(Now, user.LastLoginAt);
         Assert.NotNull(f.Sessions.Added);
         Assert.Equal(Now.AddDays(7), f.Sessions.Added!.AbsoluteExpiresAtUtc);
-        Assert.True(f.Limiter.ResetCalled);
         Assert.NotNull(f.SessionCache.WrittenEntry);
         Assert.Equal(CacheGeneration.None, f.SessionCache.WrittenExpected);
         Assert.Equal(f.Csrf.CreatedFor, f.Sessions.Added.Id);
         Assert.Single(f.Audit.Calls, c => c.Result == AuditResult.Succeeded);
 
-        // "save-changes" (commit DB: user + session family) phải đứng trước "reset" (rate limiter) và
-        // "write-cache" (Redis) — không được reset/ghi cache trước khi chắc chắn đã commit thành công.
-        Assert.Equal(["save-changes", "reset", "write-cache"], f.Timeline);
+        // "commit-transaction" phải đứng trước "write-cache" (Redis) — không được ghi cache trước khi
+        // chắc chắn đã commit DB thành công.
+        Assert.Equal(["save-changes", "commit-transaction", "write-cache"], f.Timeline);
     }
 }

@@ -69,7 +69,7 @@ public class UserTests
     {
         var user = NewUser();
 
-        user.ChangePassword("hash-2");
+        user.ChangePassword("hash-2", Now);
 
         Assert.Equal(2, user.SecurityVersion);
         Assert.False(user.MustChangePassword);

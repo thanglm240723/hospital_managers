@@ -4,4 +4,4 @@ using QuanLyBenhVien.Application.Features.Auth.Common;
 
 namespace QuanLyBenhVien.Application.Features.Auth.ChangePassword;
 
-public sealed record ChangePasswordCommand(string CurrentPassword, string NewPassword) : ICommand<Result<AuthTokensResult>>;
+public sealed record ChangePasswordCommand(string CurrentPassword, string NewPassword) : ICommand<Result<AccessTokenDto>>;

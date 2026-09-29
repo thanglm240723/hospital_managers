@@ -52,7 +52,7 @@ public sealed class User : AggregateRoot<Guid>, IAuditable
         return user;
     }
 
-    public void ChangePassword(string newPasswordHash)
+    public void ChangePassword(string newPasswordHash, DateTimeOffset now)
     {
         if (string.IsNullOrWhiteSpace(newPasswordHash))
             throw new ArgumentException("New password hash cannot be empty.", nameof(newPasswordHash));
@@ -62,7 +62,7 @@ public sealed class User : AggregateRoot<Guid>, IAuditable
         PasswordHash = newPasswordHash;
         MustChangePassword = false;
         SecurityVersion++;
-        Touch();
+        UpdatedAt = now;
         Raise(new UserPasswordChangedDomainEvent(Id));
     }
 

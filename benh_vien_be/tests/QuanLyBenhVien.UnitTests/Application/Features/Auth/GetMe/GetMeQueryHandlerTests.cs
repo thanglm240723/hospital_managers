@@ -10,6 +10,7 @@ file sealed class FakeCurrentUser : ICurrentUser
 {
     public Guid? UserId { get; init; }
     public Guid? SessionFamilyId => null;
+    public int? SecurityVersion => null;
 }
 
 file sealed class FakeAuthReadService(MeDto? me) : IAuthReadService

@@ -17,7 +17,22 @@ internal sealed class UserRepository : IUserRepository
     public async Task<User?> GetByEmailAsync(string email, CancellationToken ct = default)
     {
         var normalized = User.NormalizeEmail(email);
-        return await _context.Users.FirstOrDefaultAsync(u => u.Email == normalized, ct);
+        return await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Email == normalized, ct);
+    }
+
+    public async Task<User?> GetForUpdateAsync(Guid id, CancellationToken ct = default)
+    {
+        EnsureTransaction();
+        await _context.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT 1 FROM \"Users\" WHERE \"Id\" = {id} FOR UPDATE", ct);
+
+        return await _context.Users.SingleOrDefaultAsync(u => u.Id == id, ct);
+    }
+
+    private void EnsureTransaction()
+    {
+        if (_context.Database.CurrentTransaction is null)
+            throw new InvalidOperationException("Row locks require an open transaction (IUnitOfWork.BeginTransactionAsync).");
     }
 
     public async Task<User> GetUserByIdAsync(Guid id, CancellationToken ct = default)

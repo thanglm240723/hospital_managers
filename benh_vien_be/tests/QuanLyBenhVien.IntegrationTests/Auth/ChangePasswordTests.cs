@@ -91,22 +91,8 @@ public class ChangePasswordTests : IAsyncLifetime
         Assert.Equal("InvalidCurrentPassword", record.Reason);
     }
 
-    /// I1 (final review): 5 lần sai mật khẩu hiện tại phải bị khoá tạm giống login (cùng bộ đếm rl:email),
-    /// nếu không kẻ giữ access token (XSS, hoặc token bị đánh cắp trong 15 phút) dò được mật khẩu vô hạn lần.
-    [Fact]
-    public async Task FiveWrongCurrentPasswordAttempts_SixthIsRateLimited()
-    {
-        var (_, client) = await LoggedInAsync();
-
-        for (var i = 0; i < 5; i++)
-            Assert.Equal(HttpStatusCode.BadRequest, (await ChangeAsync(client, "Not-My-Password-1", NewPassword)).StatusCode);
-
-        var response = await ChangeAsync(client, TestData.DefaultPassword, NewPassword);   // kể cả đúng mật khẩu hiện tại
-
-        Assert.Equal(HttpStatusCode.TooManyRequests, response.StatusCode);
-        Assert.True(int.Parse(response.Headers.GetValues("Retry-After").Single()) > 0);
-        Assert.Equal("rate_limited", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
-    }
+    // Bộ đếm khoá tạm theo email (rl:email, ILoginAttemptLimiter/LoginRateLimiter) đã bị gỡ bỏ (quyết định
+    // 2026-09-30, spec V2 §2 mục 8): đổi mật khẩu không bao giờ trả 429 từ BE. Rate limit theo IP ở Gateway giữ nguyên.
 
     [Fact]
     public async Task MissingCsrf_Returns403()

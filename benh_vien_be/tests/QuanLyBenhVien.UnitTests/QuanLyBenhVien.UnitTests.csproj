@@ -33,7 +33,6 @@
   <ItemGroup>
     <!-- Q2: test của slice chưa chuyển — loại tạm để solution build, không xóa. Gỡ khi làm slice tương ứng. -->
     <Compile Remove="Application\Behaviors\AuditBehaviorTests.cs" /> <!-- chờ slice AuditBehavior -->
-    <Compile Remove="Application\Security\PasswordPolicyTests.cs" /> <!-- chờ slice change-password (PasswordPolicy) -->
     <Compile Remove="Infrastructure\DependencyInjection\InfrastructureServiceExtensionsTests.cs" /> <!-- chờ slice infrastructure-di (PermissionService/CacheInvalidator/worker/health DB chưa port) -->
   </ItemGroup>
 

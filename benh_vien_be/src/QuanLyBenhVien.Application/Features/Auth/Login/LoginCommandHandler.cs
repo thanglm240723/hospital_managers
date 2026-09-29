@@ -20,7 +20,6 @@ internal sealed class LoginCommandHandler(
     IAccessTokenIssuer accessTokens,
     IRefreshTokenGenerator refreshTokens,
     ICsrfTokenService csrf,
-    ILoginAttemptLimiter limiter,
     ISessionCache sessionCache,
     IAuditWriter auditWriter,
     IRequestContext requestContext,
@@ -31,22 +30,26 @@ internal sealed class LoginCommandHandler(
     {
         var email = User.NormalizeEmail(request.Email);
 
-        var lockout = await limiter.GetLockoutRemainingAsync(email, cancellationToken);
-        if (lockout is { } lockoutRemaining)
+        // Tra không khoá để định vị user (có thể null). Việc kiểm tra hash/IsActive thật sự diễn ra
+        // SAU khi khoá hàng bên dưới, để tránh đăng nhập được bằng dữ liệu vừa đổi (vd. mật khẩu vừa bị đổi).
+        var located = await users.GetByEmailAsync(email, cancellationToken);
+        if (located is null)
         {
-            auditWriter.Record(AuditActions.RateLimited, AuditResult.Denied, "EmailLockout");
+            passwordHasher.SimulateVerify(request.Password);
+            auditWriter.Record(AuditActions.Login, AuditResult.Failed, "EmailNotFound");
             await unitOfWork.SaveChangesAsync(cancellationToken);
-            return AuthErrors.TooManyAttempts(lockoutRemaining);
+            return AuthErrors.InvalidCredentials;
         }
 
-        var user = await users.GetByEmailAsync(email, cancellationToken);
+        await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
+        var user = await users.GetForUpdateAsync(located.Id, cancellationToken);
 
         var reason = CheckCredentials(user, request.Password);
         if (reason is not null)
         {
-            await limiter.RegisterFailureAsync(email, cancellationToken);
-            auditWriter.Record(AuditActions.Login, AuditResult.Failed, reason, actorId: user?.Id);
+            auditWriter.Record(AuditActions.Login, AuditResult.Failed, reason, actorId: user?.Id ?? located.Id);
             await unitOfWork.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
             return AuthErrors.InvalidCredentials;
         }
 
@@ -59,10 +62,9 @@ internal sealed class LoginCommandHandler(
         auditWriter.Record(AuditActions.Login, AuditResult.Succeeded, resourceType: "SessionFamily", resourceId: family.Id.ToString(), actorId: user.Id);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         // Sau commit: không gọi Redis/HTTP ngoài trong lúc giữ transaction.
-        await limiter.ResetAsync(email, cancellationToken);
-
         var entry = new SessionCacheEntry(family.Id, user.Id, user.SecurityVersion, family.AbsoluteExpiresAtUtc);
         await sessionCache.SetIfGenerationUnchangedAsync(entry, CacheGeneration.None, cancellationToken);
 

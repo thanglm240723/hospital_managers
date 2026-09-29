@@ -9,6 +9,9 @@ public sealed class CurrentUser(IHttpContextAccessor httpContextAccessor) : ICur
 
     public Guid? SessionFamilyId => GuidClaim("fid");
 
+    public int? SecurityVersion
+        => int.TryParse(httpContextAccessor.HttpContext?.User?.FindFirst("sv")?.Value, out var sv) ? sv : null;
+
     private Guid? GuidClaim(string type)
         => Guid.TryParse(httpContextAccessor.HttpContext?.User?.FindFirst(type)?.Value, out var id) ? id : null;
 }
