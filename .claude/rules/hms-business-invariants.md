@@ -1,9 +1,10 @@
 ---
 paths:
-  - "**/CleanArchCqrs.Domain/**/*.cs"
-  - "**/CleanArchCqrs.Application/**/*.cs"
-  - "**/CleanArchCqrs.Infrastructure/**/*.cs"
-  - "**/CleanArchCqrs.API/Controllers/**/*.cs"
+  - "**/QuanLyBenhVien.Domain/**/*.cs"
+  - "**/QuanLyBenhVien.Application/**/*.cs"
+  - "**/QuanLyBenhVien.Persistence/**/*.cs"
+  - "**/QuanLyBenhVien.Infrastructure/**/*.cs"
+  - "**/QuanLyBenhVien.Presentation/**/*.cs"
 ---
 # HMS — Bất biến nghiệp vụ (P0)
 
@@ -28,8 +29,9 @@ Rule này chỉ giữ những bất biến dễ bị phá nhất khi code; chi t
    → phạm vi dữ liệu. Từ chối mặc định. Cùng khoa hay Admin **không** tự có quyền đọc toàn bệnh viện.
 8. Quyền theo tài nguyên áp dụng cho command, query, tìm kiếm, export và tải tệp; lọc trước phân trang và `COUNT`.
 9. Grant cấp cứu mặc định 30 phút (OPEN-04 chốt vai trò), phát cảnh báo hậu kiểm.
-10. Dữ liệu nhạy cảm: ghi audit bền vững **trước** khi trả; ghi audit lỗi thì không trả dữ liệu (`IAuditedRequest`).
-11. Luôn còn ít nhất một admin đang hoạt động (`AdminSafety`, advisory lock).
+10. Dữ liệu nhạy cảm: ghi audit bền vững **trước** khi trả; ghi audit lỗi thì không trả dữ liệu (`IAuditedRequest` +
+    `AuditBehavior`, ghi qua `IAuditWriter`).
+11. Luôn còn ít nhất một admin đang hoạt động (kiểm tra trong handler dưới advisory lock).
 
 ## Tiếp nhận và hàng chờ (§5, NV-06..12)
 12. Cấp số trong một transaction: idempotency → tạo lượt khám → tăng bộ đếm `Queue` bằng `UPDATE … RETURNING` → tạo

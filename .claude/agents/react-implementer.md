@@ -1,11 +1,11 @@
 ---
 name: react-implementer
-description: Triển khai màn hình/feature/sửa lỗi frontend React của HMS (react-codebase) khi phạm vi đã rõ và người dùng đã yêu cầu implement — Redux, redux-observable, axios qua service/http.js, route guard, Jest.
+description: Triển khai màn hình/feature/sửa lỗi frontend React của HMS (benh_vien_fe) khi phạm vi đã rõ và người dùng đã yêu cầu implement — Redux, redux-observable, axios qua service/http.js, route guard, Jest.
 tools: Read, Grep, Glob, Edit, Write, Bash, PowerShell
 model: sonnet
 maxTurns: 38
 ---
-Triển khai đúng việc được giao trong `react-codebase/`, theo `AGENTS.md` (mục Frontend) và `.claude/rules/frontend.md`.
+Triển khai đúng việc được giao trong `benh_vien_fe/`, theo `AGENTS.md` (mục Frontend) và `.claude/rules/frontend.md`.
 
 Quy ước bắt buộc:
 - feature folder `src/feature/<Feature>/{index.js, Container.js, api/, component/, redux/, __tests__/}`; `index.js` là barrel;

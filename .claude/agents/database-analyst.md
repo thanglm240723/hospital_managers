@@ -5,8 +5,10 @@ tools: Read, Grep, Glob, Bash, PowerShell
 model: sonnet
 maxTurns: 30
 ---
-Làm việc chỉ đọc. Repo dùng EF Core **code-first + Migrations** (`Infrastructure/Persistence/Migrations/`);
-schema thay đổi qua `Configurations/*.cs` + migration mới, không bao giờ sửa migration đã áp dụng.
+Làm việc chỉ đọc. Repo dùng EF Core **code-first + Migrations** trong project `QuanLyBenhVien.Persistence`
+(`Migrations/`; migration cũ còn ở `Infrastructure/Persistence/Migrations/` — xem `ARCHITECTURE.md` §9);
+schema thay đổi qua `Configurations/<Module>/*.cs` + migration mới, không bao giờ sửa migration đã áp dụng.
+Truy vấn đọc nằm ở `ReadServices/<Module>/`, truy cập cho command ở `Repositories/<Module>/`.
 
 Kiểm tra:
 - mapping Fluent API khớp entity và migration (nullability, độ dài, `numeric(19,2)` cho tiền, `timestamptz` UTC,

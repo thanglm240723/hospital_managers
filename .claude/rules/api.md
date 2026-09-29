@@ -1,24 +1,32 @@
 ---
 paths:
-  - "**/CleanArchCqrs.API/**/*.cs"
+  - "**/QuanLyBenhVien.API/**/*"
 ---
-# Quy tắc API
+# Quy tắc API (host / composition root)
 
-- Controller mỏng: bind → map sang command/query → `ISender.Send(…, ct)` → trả kết quả. Không truy vấn EF, không gọi
-  Redis/Infrastructure, không quy tắc nghiệp vụ trong controller.
-- Route: `[Route("api/v1/<tài-nguyên-kebab>")]` viết tay (không `[controller]` — sinh sai với tên nhiều từ).
-  Command nghiệp vụ: `POST {id}/<động-từ>`. Không đổi dữ liệu bằng `GET`. Route nội bộ cho Gateway: `internal/...`
-  + `[InternalApiKey]`.
-- Deny-by-default: fallback policy yêu cầu đăng nhập. Endpoint công khai phải ghi rõ `[AllowAnonymous]` và có lý do.
-- Quyền: `[HasPermission(Permissions.X.Y)]` (hằng trong Domain). Endpoint đổi dữ liệu: `[CsrfProtected]`.
-  Endpoint được gọi khi còn bắt đổi mật khẩu: `[AllowWhilePasswordChangeRequired]`.
-- DTO request: `Contracts/<Feature>/XxxRequest.cs` (record). DTO response lấy từ `Application/<Feature>/Models/`.
-  Không trả entity Domain. JSON camelCase, bỏ trường null.
-- Lỗi: ném exception, `Errors/GlobalExceptionHandler` map sang Problem Details với `code`, `traceId`, `errors`.
-  Không tự `return BadRequest("…")` với chuỗi tự do. 403 từ policy đi qua `ProblemAuthorizationResultHandler`.
-- Cookie auth (`__Host-rt`, CSRF) chỉ ghi qua `Auth/AuthCookieWriter`.
-- `ICurrentUser`/`IRequestContext` implement ở `Services/` từ claim đã validate — không tin header do client tự gửi.
-- `Program.cs` là composition root: middleware theo thứ tự hiện có (ForwardedHeaders → CorrelationId → ExceptionHandler
-  → Serilog request logging → Authentication → UserLogContext → Authorization).
-- Thêm/sửa route ⇒ cập nhật `CleanArchCqrs.Gateway/appsettings.json` và frontend gọi tới (xem skill `api-contract-change`).
+`QuanLyBenhVien.API` là tiến trình chạy: tham chiếu Application, Persistence, Infrastructure, Presentation và ghép chúng
+lại. **Không** chứa endpoint (ở Presentation), không logic nghiệp vụ, không truy vấn EF.
+
+## Bố cục
+- `Program.cs` — cấu hình host, Serilog, pipeline middleware, `MapCarter()`, health check.
+- `Composition/` — chỉ đăng ký DI (gọi extension của từng project), không logic.
+- `Middleware/` — middleware HTTP cắt ngang: correlation id, log context người dùng, exception handler.
+- `Health/` — đăng ký liveness/readiness và health check phụ thuộc.
+- `Security/` — JWT bearer, fallback policy (deny-by-default), policy quyền, implement `ICurrentUser`/`IRequestContext`
+  từ claim đã validate — không tin header do client tự gửi.
+
+Trạng thái: `Program.cs` hiện còn bản cũ (`AddControllers`, `MapControllers`, namespace cũ) — xem `ARCHITECTURE.md` §9.
+
+## Pipeline
+- Thứ tự middleware: ForwardedHeaders → CorrelationId → ExceptionHandler → Serilog request logging → Authentication →
+  UserLogContext → Authorization → endpoint.
+- Exception handler map `ValidationException`, exception miền và lỗi bất ngờ sang Problem Details (`code`, `traceId`,
+  `errors`), cùng định dạng với map `Result` ở Presentation. Lỗi 403 từ policy cũng trả Problem Details.
+- `ForwardedHeaders:KnownProxies` chỉ chứa proxy tin cậy (Gateway).
 - Swagger chỉ bật ở Development.
+
+## Cấu hình
+- Options bind + validate khi khởi động; secret (`Jwt:SigningKey`, `Auth:CsrfKey`, `Auth:InternalApiKey`,
+  `Seed:AdminPassword`) chỉ từ user-secrets/secret store — `appsettings*.json` để rỗng.
+- `Database:MigrateOnStartup` chỉ `true` ở Development.
+- Chỉ thêm tham chiếu tới capability/adapter mà tiến trình này thật sự dùng; worker nặng nên là host riêng.

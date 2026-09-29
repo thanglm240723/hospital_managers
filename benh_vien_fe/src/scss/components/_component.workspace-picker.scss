@@ -1,0 +1,49 @@
+.c-workspace-picker {
+  min-height: 100vh;
+  background: $hms-color-bg;
+  color: $hms-color-text;
+  font-family: $hms-font-family;
+  padding: 48px;
+}
+
+.c-workspace-picker__title {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.c-workspace-picker__subtitle {
+  color: $hms-color-text-muted;
+  margin-bottom: 24px;
+}
+
+.c-workspace-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  max-width: 900px;
+}
+
+.c-workspace-picker__card {
+  text-align: left;
+  background: #fff;
+  border: 1px solid $hms-color-border;
+  border-radius: 10px;
+  padding: 20px;
+  cursor: pointer;
+
+  &:hover {
+    border-color: $hms-color-accent;
+  }
+}
+
+.c-workspace-picker__card-name {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.c-workspace-picker__card-desc {
+  display: block;
+  color: $hms-color-text-muted;
+  font-size: 13px;
+}

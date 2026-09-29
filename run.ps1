@@ -2,11 +2,11 @@
 #   1. Docker: Postgres (5433), Redis (6379), Seq (5341) — nhóm "hospital-management" trên Docker Desktop
 #   2. API (5289), Gateway (5100), Frontend (9000) — mỗi cái một cửa sổ PowerShell riêng; đóng cửa sổ là dừng.
 # Thành phần nào đang chạy sẵn (cổng đã được lắng nghe) thì bỏ qua, không mở lần hai.
-# Dừng container:  docker compose -f dotnet-clean-architecture-cqrs-starter\docker-compose.yml stop
+# Dừng container:  docker compose -f benh_vien_be\docker-compose.yml stop
 
 $root     = $PSScriptRoot
-$backend  = Join-Path $root 'dotnet-clean-architecture-cqrs-starter'
-$frontend = Join-Path $root 'react-codebase'
+$backend  = Join-Path $root 'benh_vien_be'
+$frontend = Join-Path $root 'benh_vien_fe'
 $compose  = Join-Path $backend 'docker-compose.yml'
 
 function Test-Port([int]$Port) {
@@ -43,8 +43,8 @@ if ($LASTEXITCODE -ne 0) { Fail 'docker compose up thất bại (xem lỗi ở t
 # --- 2. Backend --------------------------------------------------------------
 # Build ở cửa sổ này trước (lỗi hiện ngay tại đây), rồi mới mở cửa sổ chạy với --no-build.
 $services = @(
-    @{ Name = 'API';     Port = 5289; Project = 'src\CleanArchCqrs.API' },
-    @{ Name = 'Gateway'; Port = 5100; Project = 'src\CleanArchCqrs.Gateway' }
+    @{ Name = 'API';     Port = 5289; Project = 'src\QuanLyBenhVien.API' },
+    @{ Name = 'Gateway'; Port = 5100; Project = 'src\QuanLyBenhVien.Gateway' }
 )
 foreach ($s in $services) {
     if (Test-Port $s.Port) {

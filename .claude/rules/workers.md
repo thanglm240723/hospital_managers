@@ -18,4 +18,6 @@ paths:
 - Lỗi một vòng lặp không được làm chết worker: log (không PHI) rồi chờ vòng sau.
 - Không giữ transaction DB khi gọi Redis, cloud storage, SMS/email.
 - Tác vụ định kỳ (hủy chỉ định chưa thu tiền, dọn upload hết hạn, đối soát tệp) phải an toàn khi chạy lại và khi hai instance cùng chạy.
-- Mẫu tham khảo đang có: `Infrastructure/Caching/CacheInvalidationWorker.cs` + `CacheInvalidationProcessor.cs`.
+- Worker nằm ở Infrastructure (hoặc host worker riêng); truy cập DB qua port ở Application do Persistence implement
+  (Infrastructure không tham chiếu Persistence).
+- Mẫu tham khảo (mã cũ, đang chuyển): `Infrastructure/Caching/CacheInvalidationWorker.cs` + `CacheInvalidationProcessor.cs`.

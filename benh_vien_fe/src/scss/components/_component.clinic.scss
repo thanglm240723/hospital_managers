@@ -1,0 +1,35 @@
+.c-calling-card {
+  background: #fff;
+  border: 2px solid $hms-color-accent;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.c-calling-card__label {
+  color: $hms-color-text-muted;
+  font-size: 13px;
+}
+
+.c-calling-card__number {
+  font-size: 36px;
+  font-weight: 700;
+  margin: 4px 0;
+}
+
+.c-calling-card__name {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.c-calling-card__birth {
+  color: $hms-color-text-muted;
+}
+
+.c-calling-card__countdown {
+  font-size: 28px;
+  font-weight: 700;
+  color: $hms-color-priority-text;
+  margin: 8px 0;
+}

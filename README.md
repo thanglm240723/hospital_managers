@@ -6,15 +6,17 @@ Không có chức năng đặt lịch hẹn: bệnh viện chỉ tiếp nhận v
 
 | | |
 |---|---|
-| Backend | .NET 10, ASP.NET Core, Clean Architecture + CQRS (MediatR 12.5), EF Core 10 + Npgsql |
+| Backend | .NET 10, ASP.NET Core Minimal API + Carter, Clean Architecture + CQRS (MediatR 12.5), EF Core 10 + Npgsql |
 | Gateway | YARP 2.3: xác thực JWT, kiểm tra phiên, rate limit |
 | Cơ sở dữ liệu | PostgreSQL 17 (nguồn sự thật), Redis 7.4 (cache phiên/quyền) |
 | Frontend | React 16, Redux, redux-observable, axios, Jest (Node 24) |
 | Log | Serilog → Console, file JSON, Seq |
 | Test | xUnit, Testcontainers (PostgreSQL + Redis thật), Jest |
 
-**Trạng thái:** đã xong module IdentityAccess (đăng nhập, phiên, người dùng, vai trò, quyền, audit) ở cả backend,
-Gateway và màn hình đăng nhập/đổi mật khẩu. Các module nghiệp vụ còn lại chưa làm, xem [ARCHITECTURE.md](ARCHITECTURE.md) §3.
+**Trạng thái:** module IdentityAccess (đăng nhập, phiên, người dùng, vai trò, quyền, audit) đã chạy ở khung cũ; backend
+**đang chuyển** sang khung mới (Persistence và Presentation tách riêng, endpoint Minimal API + Carter, kết quả `Result<T>`) —
+nhiều class còn là stub, xem [ARCHITECTURE.md](ARCHITECTURE.md) §9. Gateway và màn hình đăng nhập/đổi mật khẩu đã có.
+Các module nghiệp vụ còn lại chưa làm (ARCHITECTURE.md §4).
 
 ## Mục lục
 
@@ -43,20 +45,23 @@ hospital_management/
 ├── tooling/validate.ps1                 Build + test, in tóm tắt
 ├── .claude/                             Rule, skill, subagent, hook cho Claude Code
 ├── .codex/  .config/                    Cấu hình Codex; tool .NET cục bộ (dotnet-ef)
-├── dotnet-clean-architecture-cqrs-starter/
+├── benh_vien_be/
 │   ├── docker-compose.yml               PostgreSQL, Redis, Seq
+│   ├── benh_vien_be.sln
 │   ├── src/
-│   │   ├── CleanArchCqrs.Domain/        Entity, quy tắc nghiệp vụ, interface repository
-│   │   ├── CleanArchCqrs.Application/   Command/Query, validator, pipeline behavior
-│   │   ├── CleanArchCqrs.Infrastructure/ EF Core, migration, repository, Redis, bảo mật
-│   │   ├── CleanArchCqrs.API/           Controller, xác thực, phân quyền, xử lý lỗi
-│   │   └── CleanArchCqrs.Gateway/       YARP gateway
+│   │   ├── QuanLyBenhVien.Domain/         Entity, quy tắc nghiệp vụ, interface repository
+│   │   ├── QuanLyBenhVien.Application/    Features/<Feature>/<UseCase>/ (command/query, handler, validator), Result
+│   │   ├── QuanLyBenhVien.Persistence/    EF Core: DbContext, cấu hình, repository, read service, migration, seed
+│   │   ├── QuanLyBenhVien.Infrastructure/ Redis, JWT, hash mật khẩu, CSRF, worker nền, health check
+│   │   ├── QuanLyBenhVien.Presentation/   Endpoint Minimal API (Carter) theo phiên bản: Endpoints/V1/<Feature>/
+│   │   ├── QuanLyBenhVien.API/            Host: Program.cs, DI, middleware, health, xác thực
+│   │   └── QuanLyBenhVien.Gateway/        YARP gateway
 │   ├── tests/
-│   │   ├── CleanArchCqrs.UnitTests/
-│   │   └── CleanArchCqrs.IntegrationTests/
+│   │   ├── QuanLyBenhVien.UnitTests/
+│   │   └── QuanLyBenhVien.IntegrationTests/
 │   ├── docs/superpowers/plans/          Spec và plan theo chủ đề (đã duyệt)
 │   └── .sdd/Plan/                       Plan gốc theo phase
-└── react-codebase/                      Frontend
+└── benh_vien_fe/                         Frontend
 ```
 
 ## Yêu cầu cài đặt
@@ -87,7 +92,7 @@ Thành phần nào đang chạy sẵn (cổng đã mở) thì script bỏ qua.
 | http://localhost:5100 | Gateway: điểm vào API (frontend dev server proxy `/api` tới đây) |
 | http://localhost:5289 | API: Swagger UI ở `/` (chỉ Development) |
 | http://localhost:5341 | Seq: xem log |
-| `localhost:5433` | PostgreSQL (user/pass `postgres`/`postgres`, DB `CleanArchCqrsDb`) |
+| `localhost:5433` | PostgreSQL (user/pass `postgres`/`postgres`, DB `QuanLyBenhVienDb`) |
 | `localhost:6379` | Redis |
 
 **Đăng nhập lần đầu:** email `admin@hospital.local` (đặt trong `appsettings.Development.json`), mật khẩu là giá trị
@@ -97,7 +102,7 @@ và không được chứa phần tên trước `@` của email.
 Dừng hạ tầng Docker (giữ nguyên dữ liệu):
 
 ```powershell
-docker compose -f dotnet-clean-architecture-cqrs-starter\docker-compose.yml stop
+docker compose -f benh_vien_be\docker-compose.yml stop
 ```
 
 ## Cấu hình secret lần đầu
@@ -106,21 +111,21 @@ Secret **không** nằm trong `appsettings*.json`. Khi dev, đặt secret bằng
 secret lúc khởi động: thiếu hoặc quá ngắn thì báo lỗi ngay.
 
 ```powershell
-cd dotnet-clean-architecture-cqrs-starter
+cd benh_vien_be
 
 # Tự sinh chuỗi ngẫu nhiên 48 ký tự
 function New-Secret { -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 48 | ForEach-Object { [char]$_ }) }
 $jwt = New-Secret; $csrf = New-Secret; $internal = New-Secret
 
 # API
-dotnet user-secrets set "Jwt:SigningKey"      $jwt      --project src/CleanArchCqrs.API
-dotnet user-secrets set "Auth:CsrfKey"        $csrf     --project src/CleanArchCqrs.API
-dotnet user-secrets set "Auth:InternalApiKey" $internal --project src/CleanArchCqrs.API
-dotnet user-secrets set "Seed:AdminPassword"  "<mật khẩu admin ban đầu>" --project src/CleanArchCqrs.API
+dotnet user-secrets set "Jwt:SigningKey"      $jwt      --project src/QuanLyBenhVien.API
+dotnet user-secrets set "Auth:CsrfKey"        $csrf     --project src/QuanLyBenhVien.API
+dotnet user-secrets set "Auth:InternalApiKey" $internal --project src/QuanLyBenhVien.API
+dotnet user-secrets set "Seed:AdminPassword"  "<mật khẩu admin ban đầu>" --project src/QuanLyBenhVien.API
 
 # Gateway: SigningKey giống API, InternalApiKey giống Auth:InternalApiKey của API
-dotnet user-secrets set "Jwt:SigningKey"          $jwt      --project src/CleanArchCqrs.Gateway
-dotnet user-secrets set "Identity:InternalApiKey" $internal --project src/CleanArchCqrs.Gateway
+dotnet user-secrets set "Jwt:SigningKey"          $jwt      --project src/QuanLyBenhVien.Gateway
+dotnet user-secrets set "Identity:InternalApiKey" $internal --project src/QuanLyBenhVien.Gateway
 ```
 
 | Khóa | Nơi đặt | Yêu cầu |
@@ -135,12 +140,12 @@ Production dùng secret store hoặc biến môi trường. Xem [SECURITY.md](SE
 ## Chạy từng thành phần
 
 ```powershell
-cd dotnet-clean-architecture-cqrs-starter
+cd benh_vien_be
 docker compose up -d --wait                                                    # PostgreSQL, Redis, Seq
-dotnet run --project src/CleanArchCqrs.API --launch-profile http              # :5289
-dotnet run --project src/CleanArchCqrs.Gateway --launch-profile http          # :5100
+dotnet run --project src/QuanLyBenhVien.API --launch-profile http              # :5289
+dotnet run --project src/QuanLyBenhVien.Gateway --launch-profile http          # :5100
 
-cd ..\react-codebase
+cd ..\benh_vien_fe
 npm install
 npm start                                                                      # :9000
 ```
@@ -162,13 +167,14 @@ không đụng tới DB dev. Lệnh thủ công, cách chọn mức kiểm tra v
 
 ## Database và migration
 
-- EF Core **code-first**. Migration nằm ở `src/CleanArchCqrs.Infrastructure/Persistence/Migrations/`.
+- EF Core **code-first**. Migration nằm ở `src/QuanLyBenhVien.Persistence/Migrations/` (migration cũ còn ở
+  `src/QuanLyBenhVien.Infrastructure/Persistence/Migrations/` trong lúc chuyển khung).
 - Tool `dotnet-ef` được ghim phiên bản trong `.config/dotnet-tools.json`. Chạy `dotnet tool restore` một lần.
 
 ```powershell
-cd dotnet-clean-architecture-cqrs-starter
-dotnet ef migrations add <TenMigration> --project src/CleanArchCqrs.Infrastructure --startup-project src/CleanArchCqrs.API --output-dir Persistence/Migrations
-dotnet ef migrations script --project src/CleanArchCqrs.Infrastructure --startup-project src/CleanArchCqrs.API
+cd benh_vien_be
+dotnet ef migrations add <TenMigration> --project src/QuanLyBenhVien.Persistence --startup-project src/QuanLyBenhVien.API --output-dir Migrations
+dotnet ef migrations script --project src/QuanLyBenhVien.Persistence --startup-project src/QuanLyBenhVien.API
 ```
 
 - Không sửa migration đã áp dụng. Muốn sửa thì tạo migration mới.
@@ -182,12 +188,13 @@ dotnet ef migrations script --project src/CleanArchCqrs.Infrastructure --startup
 |---|---|
 | `Dac_ta_nghiep_vu_v2.0.docx` | Yêu cầu nghiệp vụ, tiêu chí nghiệm thu, mục còn mở (OPEN) |
 | `Dac_ta_ky_thuat_v3.1.docx` | Kiến trúc, dữ liệu, phân quyền, giao dịch, API, vận hành. Bản 3.1 chuyển từ SQL Server sang PostgreSQL |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Thành phần, layer, module, luồng xác thực, dữ liệu và giao dịch |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Thành phần, project và chiều phụ thuộc, luồng request, module, xác thực, dữ liệu, trạng thái chuyển khung |
 | [SECURITY.md](SECURITY.md) | Secret, xác thực, phân quyền, log, tệp |
 | [VALIDATION.md](VALIDATION.md) | Lệnh kiểm tra và kết quả gần nhất |
-| `dotnet-clean-architecture-cqrs-starter/docs/superpowers/plans/` | Spec và plan theo chủ đề, ví dụ `2026-09-23-auth-permission-redesign/` |
-| `dotnet-clean-architecture-cqrs-starter/.sdd/Plan/00-quyet-dinh-va-quy-uoc.md` | Quy ước đặt tên và cấu trúc code |
-| `dotnet-clean-architecture-cqrs-starter/src/CleanArchCqrs.Gateway/README.md` | Bảng định tuyến Gateway |
+| `benh_vien_be/docs/superpowers/plans/` | Spec và plan theo chủ đề, ví dụ `2026-09-23-auth-permission-redesign/` |
+| `benh_vien_be/.sdd/Plan/00-quyet-dinh-va-quy-uoc.md` | Quy ước đặt tên và cấu trúc code |
+| `benh_vien_be/README.md` | Tổng quan backend và quy ước từng project |
+| `benh_vien_be/src/QuanLyBenhVien.Gateway/README.md` | Bảng định tuyến Gateway |
 
 Nếu các nguồn mâu thuẫn, thứ tự ưu tiên là: đặc tả → spec theo chủ đề → quy ước `.sdd` → code. Chi tiết xem [AGENTS.md](AGENTS.md).
 
@@ -197,7 +204,8 @@ Repo đã cấu hình sẵn cho coding agent:
 
 - **Codex** đọc `AGENTS.md` và `.codex/config.toml`.
 - **Claude Code** đọc `CLAUDE.md` (file này import `AGENTS.md`) và thư mục `.claude/`:
-  - `rules/`: quy tắc tự nạp theo đường dẫn file (Domain, Application, Persistence, API, Gateway, frontend, test, bất biến nghiệp vụ).
+  - `rules/`: quy tắc tự nạp theo đường dẫn file (Domain, Application, Persistence, Infrastructure, Presentation, API,
+    Gateway, worker, frontend, test, bất biến nghiệp vụ).
   - `skills/`: `/feature`, `/complex-plan`, `/review-diff`, `/ef-migration`, `/long-task`, cùng `transaction-write`,
     `postgres-concurrency`, `api-contract-change`, `object-storage`, `react-feature`.
   - `agents/`: `architecture-planner`, `reviewer` (opus); `dotnet-implementer`, `react-implementer`, `debugger`,
@@ -221,7 +229,7 @@ Script chạy DBHub `1.2.3` qua `npx`. Tool `execute_sql` được cấu hình `
 | Triệu chứng | Nguyên nhân và cách xử lý |
 |---|---|
 | API/Gateway không khởi động, báo `Jwt:SigningKey must be at least 32 characters` | Chưa đặt user-secrets. Xem [Cấu hình secret lần đầu](#cấu-hình-secret-lần-đầu) |
-| Build lỗi `MSB3027 … file is locked by CleanArchCqrs.Gateway` | App đang chạy. Đóng cửa sổ PowerShell của API/Gateway rồi build lại |
+| Build lỗi `MSB3027 … file is locked by QuanLyBenhVien.Gateway` | App đang chạy. Đóng cửa sổ PowerShell của API/Gateway rồi build lại |
 | API không kết nối được DB | Kiểm tra `docker ps` có container `hospital-postgres`, và connection string dùng cổng `5433` |
 | Đăng nhập được nhưng mọi request trả 401 | `Jwt:SigningKey` hoặc `InternalApiKey` của API và Gateway không khớp nhau |
 | Health báo `Degraded` | Redis không chạy. Hệ thống vẫn hoạt động (đọc từ DB), chỉ chậm hơn |

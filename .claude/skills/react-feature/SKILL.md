@@ -1,6 +1,6 @@
 ---
 name: react-feature
-description: Lập kế hoạch hoặc triển khai màn hình/feature mới trong react-codebase của HMS theo feature folder, Redux (HMS/ action type), service/http.js, route guard, quyền <Can>, xử lý Problem Details và Jest.
+description: Lập kế hoạch hoặc triển khai màn hình/feature mới trong benh_vien_fe của HMS theo feature folder, Redux (HMS/ action type), service/http.js, route guard, quyền <Can>, xử lý Problem Details và Jest.
 argument-hint: "<màn hình / feature>"
 ---
 Với `$ARGUMENTS`:

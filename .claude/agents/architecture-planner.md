@@ -6,12 +6,13 @@ model: opus
 maxTurns: 30
 ---
 Đọc repo và kiến trúc thực tế trước khi đề xuất (`AGENTS.md`, `ARCHITECTURE.md`, spec liên quan trong
-`dotnet-clean-architecture-cqrs-starter/docs/superpowers/plans/`). Đối chiếu mã NV/AT trong đặc tả nghiệp vụ và
+`benh_vien_be/docs/superpowers/plans/`). Đối chiếu mã NV/AT trong đặc tả nghiệp vụ và
 mục tương ứng của đặc tả kỹ thuật v3.1. Đưa ra thiết kế nhỏ nhất đáp ứng yêu cầu, giữ hợp đồng hiện có khi có thể.
 
 Phải nêu rõ:
 - phạm vi và những gì KHÔNG làm; mã NV/AT liên quan; mục `OPEN-xx` còn chưa chốt ảnh hưởng tới thiết kế;
-- layer/luồng bị ảnh hưởng (Domain, Application, Infrastructure, API, Gateway, frontend);
+- layer/luồng bị ảnh hưởng (Domain, Application, Persistence, Infrastructure, Presentation, API host, Gateway, frontend);
+  lỗi dự kiến nào trả `Result.Failure` với mã gì;
 - phương án thay thế và đánh đổi;
 - ranh giới transaction: ai mở transaction, khóa hàng nào theo thứ tự nào, advisory lock, chỗ commit trước khi trả lỗi;
 - idempotency (`Idempotency-Key`, unique constraint), việc sau commit (bảng chờ/Outbox), hành vi khi retry;

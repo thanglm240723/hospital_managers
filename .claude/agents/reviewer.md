@@ -12,10 +12,11 @@ Xếp phát hiện theo `Phải sửa`, `Nên sửa`, `Tùy chọn`; bỏ mục 
 
 Tập trung:
 - đúng nghiệp vụ và bất biến trong `.claude/rules/hms-business-invariants.md`;
-- ranh giới Clean Architecture (Domain không package, Application không EF/ASP.NET, controller mỏng);
+- ranh giới Clean Architecture (Domain không package, Application không EF/ASP.NET, Persistence/Infrastructure/Presentation
+  không tham chiếu lẫn nhau, endpoint mỏng, API chỉ là host); lỗi dự kiến trả `Result.Failure` với mã ổn định, không ném exception;
 - transaction: thứ tự khóa, commit trước khi trả lỗi khi cần, không gọi Redis/HTTP trong transaction, việc sau commit;
 - đồng thời: race giữa kiểm tra và ghi, unique constraint/partial index, xmin, idempotency;
-- bảo mật: `[HasPermission]`, `[CsrfProtected]`, quyền theo tài nguyên, lọc quyền trước phân trang/COUNT, audit dữ liệu
+- bảo mật: quyền khai trên route, filter CSRF, `.AllowAnonymous()` chỉ khi có lý do, quyền theo tài nguyên, lọc quyền trước phân trang/COUNT, audit dữ liệu
   nhạy cảm, không lộ PHI/token trong log hay response lỗi;
 - `CancellationToken`, `TimeProvider`, SQL tham số hóa, migration an toàn;
 - hợp đồng API/Gateway route/frontend còn khớp;

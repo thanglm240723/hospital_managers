@@ -4,7 +4,7 @@
 #
 #   Quick     build solution + unit test                       (không cần Docker)
 #   Full      Quick + integration test (Testcontainers)         (cần Docker đang chạy)
-#   Frontend  Jest (CI) + ESLint cho react-codebase
+#   Frontend  Jest (CI) + ESLint cho benh_vien_fe
 #   All       Full + Frontend
 #
 # Exit code 0 khi mọi bước PASS, 1 khi có bước FAIL.
@@ -16,8 +16,8 @@ param(
 
 $ErrorActionPreference = 'Continue'
 $root     = Split-Path -Parent $PSScriptRoot
-$backend  = Join-Path $root 'dotnet-clean-architecture-cqrs-starter'
-$frontend = Join-Path $root 'react-codebase'
+$backend  = Join-Path $root 'benh_vien_be'
+$frontend = Join-Path $root 'benh_vien_fe'
 $logDir   = Join-Path $root '.claude\work\logs'
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -44,12 +44,12 @@ function Invoke-Step([string]$Name, [string]$Dir, [string]$Command, [string]$Sum
     $results.Add([pscustomobject]@{ Step = $Name; Status = $status; Log = $log })
 }
 
-$sln = 'dotnet-clean-architecture-cqrs-starter.sln'
+$sln = 'benh_vien_be.sln'
 $testSummary = '(Passed!|Failed!|error CS|\[FAIL\]|Total tests|Build FAILED)'
 
 if ($Mode -in @('Quick', 'Full', 'All')) {
     Invoke-Step 'build' $backend "dotnet build $sln -v q --nologo" '(error |Build succeeded|Build FAILED|\d+ Error)'
-    Invoke-Step 'unit-tests' $backend 'dotnet test tests/CleanArchCqrs.UnitTests --no-build -v q --nologo' $testSummary
+    Invoke-Step 'unit-tests' $backend 'dotnet test tests/QuanLyBenhVien.UnitTests --no-build -v q --nologo' $testSummary
 }
 
 if ($Mode -in @('Full', 'All')) {
@@ -59,14 +59,14 @@ if ($Mode -in @('Full', 'All')) {
         Write-Host '    BLOCKED  Docker chưa chạy — Testcontainers cần Docker Desktop.' -ForegroundColor Yellow
         $results.Add([pscustomobject]@{ Step = 'integration-tests'; Status = 'BLOCKED'; Log = '' })
     } else {
-        Invoke-Step 'integration-tests' $backend 'dotnet test tests/CleanArchCqrs.IntegrationTests --no-build -v q --nologo' $testSummary
+        Invoke-Step 'integration-tests' $backend 'dotnet test tests/QuanLyBenhVien.IntegrationTests --no-build -v q --nologo' $testSummary
     }
 }
 
 if ($Mode -in @('Frontend', 'All')) {
     if (-not (Test-Path (Join-Path $frontend 'node_modules'))) {
         Write-Host '==> frontend' -ForegroundColor Cyan
-        Write-Host '    BLOCKED  Chưa có node_modules — chạy npm install trong react-codebase.' -ForegroundColor Yellow
+        Write-Host '    BLOCKED  Chưa có node_modules — chạy npm install trong benh_vien_fe.' -ForegroundColor Yellow
         $results.Add([pscustomobject]@{ Step = 'frontend'; Status = 'BLOCKED'; Log = '' })
     } else {
         Invoke-Step 'frontend-tests' $frontend 'set CI=true&& npm test' '(Tests:|Test Suites:|✕|FAIL )'

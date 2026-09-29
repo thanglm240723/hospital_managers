@@ -1,8 +1,8 @@
 ---
 paths:
-  - "react-codebase/src/**/*"
+  - "benh_vien_fe/src/**/*"
 ---
-# Quy tắc frontend (react-codebase)
+# Quy tắc frontend (benh_vien_fe)
 
 ## Cấu trúc
 - `src/feature/<Feature>/{index.js, Container.js, api/, component/, redux/, __tests__/}`; `index.js` là barrel

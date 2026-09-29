@@ -11,16 +11,19 @@ API, frontend, bảo mật, test) nằm trong `AGENTS.md` ở trên — không l
 
 | Rule | Áp dụng cho |
 |---|---|
-| `domain.md` | `CleanArchCqrs.Domain/**` |
-| `application.md` | `CleanArchCqrs.Application/**` |
-| `persistence.md` | `CleanArchCqrs.Infrastructure/Persistence/**`, `Repositories/**` |
-| `infrastructure.md` | phần còn lại của `CleanArchCqrs.Infrastructure/**` |
-| `api.md` | `CleanArchCqrs.API/**` |
-| `gateway.md` | `CleanArchCqrs.Gateway/**` |
+| `domain.md` | `QuanLyBenhVien.Domain/**` |
+| `application.md` | `QuanLyBenhVien.Application/**` |
+| `persistence.md` | `QuanLyBenhVien.Persistence/**` |
+| `infrastructure.md` | `QuanLyBenhVien.Infrastructure/**` |
+| `presentation.md` | `QuanLyBenhVien.Presentation/**` |
+| `api.md` | `QuanLyBenhVien.API/**` (host) |
+| `gateway.md` | `QuanLyBenhVien.Gateway/**` |
 | `workers.md` | worker/`BackgroundService`, Outbox, hàng đợi |
-| `hms-business-invariants.md` | code nghiệp vụ ở Domain/Application/Infrastructure |
+| `hms-business-invariants.md` | code nghiệp vụ ở Domain/Application/Persistence/Infrastructure/Presentation |
+
+Backend đang chuyển sang khung mới — trước khi sửa code backend, đọc `ARCHITECTURE.md` §9 để biết phần nào là mã cũ.
 | `tests.md` | `tests/**` |
-| `frontend.md` | `react-codebase/src/**` |
+| `frontend.md` | `benh_vien_fe/src/**` |
 
 ## Model và agent
 
@@ -54,7 +57,7 @@ Repo dùng alias model logic, không ghi model ID vật lý.
 | `transaction-write` | Command có transaction, khóa, idempotency, việc sau commit |
 | `postgres-concurrency` | Khóa hàng, isolation, partial index, xmin, retry, SKIP LOCKED |
 | `object-storage` | Upload/tải tệp bệnh án, UploadSession, quarantine (module Documents) |
-| `react-feature` | Màn hình/feature mới ở `react-codebase` |
+| `react-feature` | Màn hình/feature mới ở `benh_vien_fe` |
 
 ## Công cụ
 

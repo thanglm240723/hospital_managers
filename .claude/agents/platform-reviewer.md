@@ -11,7 +11,7 @@ MVP chạy một API + một worker, nhưng code phải đúng khi có nhiều i
   trùng khi hai instance cùng chạy;
 - Redis: key có namespace, TTL hoặc cơ chế xóa chủ động, hành vi khi Redis lỗi (rơi về DB, health `Degraded`),
   thao tác nguyên tử (INCR+EXPIRE);
-- Gateway: route khớp controller, route public tối thiểu, xóa header `X-Internal-*`, forwarded headers chỉ tin proxy
+- Gateway: route khớp endpoint ở Presentation, route public tối thiểu, xóa header `X-Internal-*`, forwarded headers chỉ tin proxy
   cấu hình, rate limit, timeout tới API;
 - health check liveness/readiness tách nghĩa; phụ thuộc tùy chọn chậm không làm "chết" tiến trình;
 - migration là bước riêng (`Database:MigrateOnStartup=false` ở production), tương thích khi bản cũ/mới chạy song song;

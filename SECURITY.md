@@ -20,16 +20,19 @@ mọi truy cập dữ liệu nhạy cảm đều có audit. Căn cứ: Đặc t�
   `exp`, `nbf` ở cả Gateway và API.
 - Refresh token ngẫu nhiên 256 bit, DB chỉ lưu SHA-256; cookie `__Host-rt` HttpOnly, Secure, SameSite=Strict,
   Path=/, không Domain. Rotation nguyên tử, strict reuse (trình lại token cũ ⇒ thu hồi cả family).
-- Refresh/logout và mọi request đổi dữ liệu có cookie: `POST` + CSRF token gắn phiên (`[CsrfProtected]`),
-  kiểm tra Origin theo `Auth:AllowedOrigins`.
+- Refresh/logout và mọi request đổi dữ liệu có cookie: `POST` + CSRF token gắn phiên (filter CSRF khai trên route ở
+  Presentation), kiểm tra Origin theo `Auth:AllowedOrigins`. Mục `AllowedOrigins` rỗng bị loại khi bind.
 - Rate limit đăng nhập: theo IP ở Gateway, theo email ở API; phản hồi chung, không lộ email có tồn tại hay không.
 - Khóa tài khoản/đổi mật khẩu ⇒ tăng `SecurityVersion`, thu hồi phiên.
 
 ## Phân quyền
 
-- Deny-by-default: mọi endpoint cần đăng nhập trừ các route được đánh dấu rõ `[AllowAnonymous]`.
-- Quyền hành động: `[HasPermission(...)]`. Quyền theo tài nguyên/phân công (ê-kíp, grant cấp cứu): kiểm tra ở cả
-  command, query, tìm kiếm, export và tải tệp. Guid hay object key **không** thay thế kiểm tra quyền.
+- Deny-by-default: fallback policy ở API (`Security/`) yêu cầu đăng nhập cho mọi endpoint; route công khai phải ghi rõ
+  `.AllowAnonymous()` trong module Carter (hiện chỉ `POST /api/v1/auth/login|refresh|logout`).
+- Quyền hành động: khai trên từng route theo hằng `Domain/Identity/Permissions.cs`; thiếu quyền ⇒ 403 Problem Details +
+  `AuditRecords`. Quyền theo tài nguyên/phân công (ê-kíp, grant cấp cứu): handler kiểm tra ở cả command, query, tìm kiếm,
+  export và tải tệp, trả `Result.Failure` loại forbidden/not found. Guid hay object key **không** thay thế kiểm tra quyền.
+- Endpoint khai báo quyền sai hoặc quên khai là lỗi bảo mật — review mỗi module Carter mới theo checklist này.
 - Không tin header `UserId`/`Role`/`BranchId` từ client. Gateway xóa header `X-Internal-*` trước khi forward;
   API chỉ nhận `X-Forwarded-*` từ `ForwardedHeaders:KnownProxies`.
 - API không được truy cập trực tiếp từ Internet khi triển khai có Gateway.
@@ -39,7 +42,8 @@ mọi truy cập dữ liệu nhạy cảm đều có audit. Căn cứ: Đặc t�
 
 - Log/trace không chứa: mật khẩu, token, cookie, CSRF token, số định danh người bệnh, nội dung bệnh án/kết quả,
   URL có chữ ký. `SensitiveDataDestructuringPolicy` che các trường nhạy cảm — thêm trường mới vào đó khi cần.
-- Production không bật EF sensitive-data logging, không trả stack trace/SQL ra client.
+- Production không bật EF sensitive-data logging, không trả stack trace/SQL ra client. Message của `Error` và Problem
+  Details không chứa PHI, token hay chi tiết nội bộ; đăng nhập sai trả cùng một lỗi chung.
 - Response tối thiểu hóa theo vai trò; số định danh và liên hệ được che theo quyền.
 - Frontend không lưu token hay dữ liệu bệnh án vào `localStorage`/`sessionStorage`/cache bền vững; đăng xuất xóa
   state. Không dùng `dangerouslySetInnerHTML` với dữ liệu chưa xử lý.
