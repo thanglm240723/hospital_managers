@@ -144,7 +144,7 @@ public class GatewayAuthenticationTests : IAsyncLifetime
         Assert.True(await Redis.KeyExistsAsync(key));
     }
 
-    [Fact(Skip = "chờ slice change-password")]
+    [Fact]
     public async Task AfterPasswordChange_TokenWithOldSecurityVersionIsRejected()
     {
         var (_, client) = await LoggedInViaGatewayAsync();

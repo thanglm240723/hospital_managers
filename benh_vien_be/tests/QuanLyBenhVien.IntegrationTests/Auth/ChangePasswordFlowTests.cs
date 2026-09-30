@@ -115,13 +115,13 @@ public class ChangePasswordFlowTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task NewPasswordSameAsCurrentOrContainingEmailName_Returns400OnNewPassword()
+    public async Task NewPasswordTooShortSameAsCurrentOrContainingEmailName_Returns400OnNewPassword()
     {
         var (userId, email, client) = await LoggedInAsync();
         var local = email[..email.IndexOf('@')].ToUpperInvariant();
         var before = await UserStateAsync(userId);
 
-        foreach (var next in new[] { TestData.DefaultPassword, $"xx-{local}-9" })
+        foreach (var next in new[] { "short", TestData.DefaultPassword, $"xx-{local}-9" })
         {
             var response = await ChangeAsync(client, TestData.DefaultPassword, next);
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);

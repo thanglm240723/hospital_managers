@@ -61,6 +61,10 @@ dotnet ef migrations script <MigrationTruoc> <TenMigration> --project src/QuanLy
 
 | Ngày | Bước | Kết quả | Ghi chú |
 |---|---|---|---|
+| 2026-09-30 | build + unit-tests | PASS — 157/157 | `-Mode Full` (plan 01 đổi mật khẩu, task 5) |
+| 2026-09-30 | integration-tests | PASS — 78 passed, 11 skipped, 89 total | `-Mode Full`, Docker/Testcontainers |
+| 2026-09-30 | frontend-tests + lint | PASS — 73/73, 19 suite | `-Mode Frontend` |
+| 2026-09-30 | frontend build | PASS — exit 0 | `npm run build` trong `benh_vien_fe` |
 | 2026-09-25 | unit-tests | PASS — 94/94 | `tooling/validate.ps1 -Mode Quick` |
 | 2026-09-25 | build | BLOCKED | Gateway đang chạy khóa `QuanLyBenhVien.Gateway.exe`; không phải lỗi biên dịch |
 | 2026-09-25 | frontend-tests | PASS — 33/33, 10 suite | `-Mode Frontend` |

@@ -282,8 +282,10 @@ Mọi command ở đây ghi AuditRecord (`users.create`, `users.deactivate`, `us
 | Đổi role / quyền lẻ của user | `perm:{uid}` |
 | Đổi permission của role | `perm:{uid}` × mọi user thuộc role |
 | Khoá / mở khoá tài khoản | `perm:{uid}` (+ `session:{fid}` × mọi family khi khoá) |
-| Đổi mật khẩu | `perm:{uid}` + `session:{fid}` × family khác |
+| Đổi mật khẩu | `perm:{uid}` + `session:{fid}` × mọi family, kể cả family hiện tại |
 | Logout / logout-all / revoke / reuse | `session:{fid}` |
+
+> Cập nhật 2026-09-30 (plan `plan-01-doi-mat-khau`): đổi mật khẩu tăng `sv` nên key `session:{fid}` của **cả family hiện tại** cũng phải xoá, nếu không Gateway còn nhận token cũ (sv cũ) và từ chối token mới từ cache. Handler không ghi lại `session:{currentFid}`; request kế tiếp với token mới để Gateway hỏi API rồi nạp lại. Nếu flush sau commit thất bại, cache còn sv cũ cho tới khi `CacheInvalidationWorker` xử lý (chu kỳ 5 giây, có retry) — trong khoảng đó token cũ vẫn qua Gateway và token mới bị 401; không phải thu hồi "ngay lập tức".
 
 ### 4.4 Gateway
 
