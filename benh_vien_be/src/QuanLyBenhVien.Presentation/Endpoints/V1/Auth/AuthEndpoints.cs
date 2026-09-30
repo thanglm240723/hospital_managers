@@ -8,6 +8,7 @@ using QuanLyBenhVien.Application.Features.Auth.Common;
 using QuanLyBenhVien.Application.Features.Auth.GetMe;
 using QuanLyBenhVien.Application.Features.Auth.Login;
 using QuanLyBenhVien.Application.Features.Auth.Logout;
+using QuanLyBenhVien.Application.Features.Auth.LogoutAll;
 using QuanLyBenhVien.Presentation.Auth;
 using QuanLyBenhVien.Presentation.Http;
 
@@ -64,18 +65,11 @@ public sealed class AuthEndpoints : ICarterModule
     private static Task<IResult> RefreshAsync(HttpContext http, ISender sender, CancellationToken ct) =>
         Task.FromResult(NotImplemented(http));
 
-    private static async Task<IResult> LogoutAsync(HttpContext http, ISender sender, IRefreshTokenGenerator tokenGenerator,
-        IRefreshSessionLookup sessionLookup, AuthCookieWriter cookies, CancellationToken ct)
+    private static async Task<IResult> LogoutAsync(HttpContext http, ISender sender, AuthCookieWriter cookies, CancellationToken ct)
     {
-        // Cookie thiếu/không nhận diện được family: không có gì để thu hồi — 204, xoá cookie, không mutate (Task 1).
-        // Cookie nhận diện được: đã qua filter CSRF (RequireRefreshCookieCsrf), thu hồi thật thuộc Task 2.
+        // Đã qua filter CSRF (RequireRefreshCookieCsrf) khi cookie nhận diện được family.
+        // Cookie thiếu/không nhận diện được: handler trả thành công mà không mutate — vẫn 204 + xoá cookie.
         var cookie = http.Request.Cookies[AuthCookieWriter.RefreshCookie];
-        if (string.IsNullOrEmpty(cookie) || await sessionLookup.FindAsync(tokenGenerator.Hash(cookie), ct) is null)
-        {
-            cookies.Clear(http.Response);
-            return Results.NoContent();
-        }
-
         var result = await sender.Send(new LogoutCommand(cookie), ct);
         if (result.IsFailure)
         {
@@ -99,8 +93,17 @@ public sealed class AuthEndpoints : ICarterModule
         return result.IsFailure ? result.Error!.ToProblem(http) : Results.Ok(result.Value);
     }
 
-    private static Task<IResult> LogoutAllAsync(HttpContext http, ISender sender, CancellationToken ct) =>
-        Task.FromResult(NotImplemented(http));
+    private static async Task<IResult> LogoutAllAsync(HttpContext http, ISender sender, AuthCookieWriter cookies, CancellationToken ct)
+    {
+        var result = await sender.Send(new LogoutAllCommand(), ct);
+        if (result.IsFailure)
+        {
+            return result.Error!.ToProblem(http);
+        }
+
+        cookies.Clear(http.Response);
+        return Results.NoContent();
+    }
 
     private static IResult NotImplemented(HttpContext http) =>
         ProblemResponses.Create(http, StatusCodes.Status501NotImplemented, "not_implemented",
