@@ -52,8 +52,10 @@ export const expireSession = () => (dispatch) => {
   broadcastLogout();
 };
 
-export const changePassword = (currentPassword, newPassword) => async (dispatch) => {
+// Chỉ đổi mật khẩu + giữ token mới trong RAM của tab này. Không tự gọi loadMe: gọi thất bại (mất
+// mạng, 401…) không được hiểu nhầm là đổi mật khẩu thất bại và không được kích hoạt POST lại.
+export const changePassword = (currentPassword, newPassword) => async () => {
   const { data } = await http.post('v1/auth/change-password', { currentPassword, newPassword });
   setAccessToken(data.accessToken, data.expiresAtUtc);
-  return dispatch(loadMe());
+  return data;
 };

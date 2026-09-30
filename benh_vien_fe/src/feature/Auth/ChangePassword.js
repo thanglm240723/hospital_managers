@@ -1,7 +1,7 @@
 import React from 'react';
 import { connect } from 'react-redux';
 import { Link } from 'react-router-dom';
-import { changePassword as changePasswordAction, logout as logoutAction } from './redux/actions';
+import { changePassword as changePasswordAction, loadMe as loadMeAction, logout as logoutAction } from './redux/actions';
 import { problemTitle, problemFieldErrors } from './problem';
 import { AuthLayout, Alert, PasswordField } from './AuthLayout';
 
@@ -18,12 +18,16 @@ class ChangePassword extends React.Component {
     error: null,
     fieldErrors: {},
     submitting: false,
+    changed: false,
+    meError: false,
   };
 
   handleChange = event => this.setState({ [event.target.name]: event.target.value });
 
   handleSubmit = async (event) => {
     event.preventDefault();
+    // Hai lần bấm khi đang gửi: chỉ một POST.
+    if (this.state.submitting) return;
     if (this.state.newPassword !== this.state.confirmPassword) {
       this.setState({ error: null, fieldErrors: { confirmPassword: ['Mật khẩu nhập lại không khớp.'] } });
       return;
@@ -31,10 +35,34 @@ class ChangePassword extends React.Component {
     this.setState({ submitting: true, error: null, fieldErrors: {} });
     try {
       await this.props.changePassword(this.state.currentPassword, this.state.newPassword);
-      this.props.history.replace('/start');
     } catch (error) {
       this.setState({ submitting: false, error: problemTitle(error), fieldErrors: problemFieldErrors(error) });
+      return;
     }
+    // Đổi mật khẩu đã thành công ở server: xoá mật khẩu khỏi form, không POST lại dù bước sau lỗi.
+    this.setState({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+      submitting: false,
+      changed: true,
+      meError: false,
+    });
+    this.loadMeAfterChange();
+  };
+
+  loadMeAfterChange = async () => {
+    try {
+      await this.props.loadMe();
+      this.props.history.replace('/start');
+    } catch (error) {
+      this.setState({ meError: true });
+    }
+  };
+
+  handleRetryLoadMe = () => {
+    this.setState({ meError: false });
+    this.loadMeAfterChange();
   };
 
   newPasswordHint() {
@@ -46,11 +74,25 @@ class ChangePassword extends React.Component {
 
   render() {
     const {
-      currentPassword, newPassword, confirmPassword, error, fieldErrors, submitting,
+      currentPassword, newPassword, confirmPassword, error, fieldErrors, submitting, changed, meError,
     } = this.state;
     const { mustChangePassword, logout } = this.props;
     const firstError = key => fieldErrors[key] && fieldErrors[key][0];
     const hasFieldError = Object.keys(fieldErrors).length > 0;
+
+    if (changed && meError) {
+      return (
+        <AuthLayout>
+          <div className="c-login__form">
+            <h1 className="c-login__title">Đổi mật khẩu</h1>
+            <Alert kind="info">Mật khẩu đã đổi. Chưa tải lại được thông tin tài khoản.</Alert>
+            <button type="button" className="c-login__submit" onClick={this.handleRetryLoadMe}>
+              Thử lại
+            </button>
+          </div>
+        </AuthLayout>
+      );
+    }
 
     return (
       <AuthLayout>
@@ -120,4 +162,4 @@ class ChangePassword extends React.Component {
 }
 
 export default connect(state => ({ mustChangePassword: state.auth.mustChangePassword }),
-  { changePassword: changePasswordAction, logout: logoutAction })(ChangePassword);
+  { changePassword: changePasswordAction, loadMe: loadMeAction, logout: logoutAction })(ChangePassword);
