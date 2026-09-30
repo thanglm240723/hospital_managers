@@ -23,18 +23,21 @@ public static class GuardedCacheWrite
         return transaction.ExecuteAsync();
     }
 
-    public static async Task InvalidateAsync(IDatabase db, IReadOnlyCollection<string> keys)
+    /// Với từng cặp (key, key:gen): DEL + INCR + EXPIRE trong một script Lua — nguyên tử, không có trạng thái
+    /// "đã xoá nhưng chưa tăng thế hệ" để writer cũ chen vào. Chạy lại an toàn (thế hệ chỉ tăng thêm).
+    private const string EvictScript = """
+        for i = 1, #KEYS, 2 do
+            redis.call('DEL', KEYS[i])
+            redis.call('INCR', KEYS[i + 1])
+            redis.call('EXPIRE', KEYS[i + 1], ARGV[1])
+        end
+        return #KEYS / 2
+        """;
+
+    public static Task InvalidateAsync(IDatabase db, IReadOnlyCollection<string> keys)
     {
-        var batch = db.CreateBatch();
-        var pending = new List<Task>();
-        foreach (var key in keys)
-        {
-            var generationKey = CacheKeys.Generation(key);
-            pending.Add(batch.KeyDeleteAsync(key));
-            pending.Add(batch.StringIncrementAsync(generationKey));
-            pending.Add(batch.KeyExpireAsync(generationKey, GenerationLifetime));
-        }
-        batch.Execute();
-        await Task.WhenAll(pending);
+        if (keys.Count == 0) return Task.CompletedTask;
+        var redisKeys = keys.SelectMany(k => new RedisKey[] { k, CacheKeys.Generation(k) }).ToArray();
+        return db.ScriptEvaluateAsync(EvictScript, redisKeys, [(long)GenerationLifetime.TotalSeconds]);
     }
 }

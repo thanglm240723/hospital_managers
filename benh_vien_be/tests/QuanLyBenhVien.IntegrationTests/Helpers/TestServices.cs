@@ -1,8 +1,18 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using QuanLyBenhVien.Infrastructure.Caching;
+
 namespace QuanLyBenhVien.IntegrationTests.Helpers;
 
-// CacheInvalidationWorker chưa được port sang khung mới (chờ slice refresh-logout, xem
-// Infrastructure.csproj <Compile Remove>) — RemoveCacheInvalidationWorker tạm bỏ theo Q2.
-// Test dùng helper này (Caching/RedisServicesTests.cs) đang bị loại tạm ở IntegrationTests.csproj.
 public static class TestServices
 {
+    /// Tắt worker nền để test tự điều khiển việc claim/xử lý bảng chờ (worker chạy song song sẽ claim mất dòng).
+    public static void RemoveCacheInvalidationWorker(IServiceCollection services)
+    {
+        var worker = services.Where(d => d.ServiceType == typeof(IHostedService)
+                && d.ImplementationType == typeof(CacheInvalidationWorker))
+            .ToList();
+        foreach (var descriptor in worker)
+            services.Remove(descriptor);
+    }
 }

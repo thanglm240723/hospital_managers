@@ -2,6 +2,7 @@ using System.Reflection;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using QuanLyBenhVien.Application.Behaviors;
+using QuanLyBenhVien.Application.Common.Caching;
 
 namespace QuanLyBenhVien.Application;
 
@@ -19,6 +20,9 @@ public static class DependencyInjection
         });
 
         services.AddValidatorsFromAssembly(assembly, includeInternalTypes: true);
+
+        services.AddScoped<CacheInvalidationProcessor>();
+        services.AddScoped<ICacheInvalidator, CacheInvalidator>();
 
         return services;
     }

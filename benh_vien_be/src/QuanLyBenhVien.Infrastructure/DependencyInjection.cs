@@ -62,6 +62,8 @@ public static class DependencyInjection
         services.AddSingleton<IRefreshTokenGenerator, RefreshTokenGenerator>();
         services.AddSingleton<ICsrfTokenService, CsrfTokenService>();
         services.AddSingleton<ISessionCache, SessionCache>();
+        services.AddSingleton<ICacheKeyEvictor, RedisCacheKeyEvictor>();
+        services.AddHostedService<CacheInvalidationWorker>();
 
         return services;
     }

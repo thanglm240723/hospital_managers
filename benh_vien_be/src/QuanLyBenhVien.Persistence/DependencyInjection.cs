@@ -1,4 +1,6 @@
 using QuanLyBenhVien.Application.Common.Auditing;
+using QuanLyBenhVien.Application.Common.Caching;
+using QuanLyBenhVien.Persistence.Caching;
 using QuanLyBenhVien.Application.Features.Auth.Common;
 using QuanLyBenhVien.Domain.Common;
 using QuanLyBenhVien.Domain.Identity;
@@ -32,6 +34,7 @@ public static class DependencyInjection
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IAuditWriter, AuditWriter>();
         services.AddScoped<IAuthReadService, AuthReadService>();
+        services.AddScoped<ICacheInvalidationStore, CacheInvalidationStore>();
 
         services.AddScoped<IdentitySeeder>();
         services.Configure<SeedOptions>(configuration.GetSection("Seed"));

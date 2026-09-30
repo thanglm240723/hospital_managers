@@ -1,9 +1,11 @@
+using QuanLyBenhVien.Application.Common.Caching;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace QuanLyBenhVien.Infrastructure.Caching;
 
+/// Chạy lúc khởi động và mỗi 5 giây, tối đa 100 dòng mỗi lượt; lỗi không bỏ dòng (processor lưu Attempts/lỗi).
 public sealed class CacheInvalidationWorker : BackgroundService
 {
     public static readonly TimeSpan Interval = TimeSpan.FromSeconds(5);
@@ -29,9 +31,10 @@ public sealed class CacheInvalidationWorker : BackgroundService
                 await scope.ServiceProvider.GetRequiredService<CacheInvalidationProcessor>()
                     .ProcessPendingAsync(BatchSize, stoppingToken);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (ex is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
             {
-                _logger.LogError(ex, "Cache invalidation worker iteration failed");
+                // Không log exception thô: message có thể chứa cấu hình kết nối.
+                _logger.LogError("Cache invalidation worker iteration failed ({Error}); will retry", ex.GetType().Name);
             }
         }
         while (await timer.WaitForNextTickAsync(stoppingToken));
