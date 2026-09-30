@@ -34,6 +34,7 @@ public static class DependencyInjection
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IAuditWriter, AuditWriter>();
         services.AddScoped<IAuthReadService, AuthReadService>();
+        services.AddScoped<IRefreshSessionLookup, RefreshSessionLookup>();
         services.AddScoped<ICacheInvalidationStore, CacheInvalidationStore>();
 
         services.AddScoped<IdentitySeeder>();

@@ -7,6 +7,7 @@ using QuanLyBenhVien.Application.Features.Auth.ChangePassword;
 using QuanLyBenhVien.Application.Features.Auth.Common;
 using QuanLyBenhVien.Application.Features.Auth.GetMe;
 using QuanLyBenhVien.Application.Features.Auth.Login;
+using QuanLyBenhVien.Application.Features.Auth.Logout;
 using QuanLyBenhVien.Presentation.Auth;
 using QuanLyBenhVien.Presentation.Http;
 
@@ -27,6 +28,7 @@ public sealed class AuthEndpoints : ICarterModule
         .WithName("RefreshV1");
         group.MapPost("/logout", LogoutAsync)
         .AllowAnonymous()
+        .RequireRefreshCookieCsrf()
         .AllowWhilePasswordChangeRequired()
         .WithName("LogoutV1");
         group.MapGet("/me", MeAsync)
@@ -62,8 +64,27 @@ public sealed class AuthEndpoints : ICarterModule
     private static Task<IResult> RefreshAsync(HttpContext http, ISender sender, CancellationToken ct) =>
         Task.FromResult(NotImplemented(http));
 
-    private static Task<IResult> LogoutAsync(HttpContext http, ISender sender, CancellationToken ct) =>
-        Task.FromResult(NotImplemented(http));
+    private static async Task<IResult> LogoutAsync(HttpContext http, ISender sender, IRefreshTokenGenerator tokenGenerator,
+        IRefreshSessionLookup sessionLookup, AuthCookieWriter cookies, CancellationToken ct)
+    {
+        // Cookie thiếu/không nhận diện được family: không có gì để thu hồi — 204, xoá cookie, không mutate (Task 1).
+        // Cookie nhận diện được: đã qua filter CSRF (RequireRefreshCookieCsrf), thu hồi thật thuộc Task 2.
+        var cookie = http.Request.Cookies[AuthCookieWriter.RefreshCookie];
+        if (string.IsNullOrEmpty(cookie) || await sessionLookup.FindAsync(tokenGenerator.Hash(cookie), ct) is null)
+        {
+            cookies.Clear(http.Response);
+            return Results.NoContent();
+        }
+
+        var result = await sender.Send(new LogoutCommand(cookie), ct);
+        if (result.IsFailure)
+        {
+            return result.Error!.ToProblem(http);
+        }
+
+        cookies.Clear(http.Response);
+        return Results.NoContent();
+    }
 
     private static async Task<IResult> MeAsync(HttpContext http, ISender sender, CancellationToken ct)
     {
