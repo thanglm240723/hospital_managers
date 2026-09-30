@@ -52,6 +52,38 @@ public class LogoutSessionTests
         Assert.Equal(SessionStatus.Revoked, status);
     }
 
+    /// Task 4 (plan 02 logout): logout qua Gateway thực sự xoá cookie (Set-Cookie __Host-rt/__Host-csrf,
+    /// vẫn Secure/SameSite=Strict/Path=/) và route công khai (không cần bearer) qua cookie forward.
+    [Fact]
+    public async Task Logout_ViaGateway_ClearsCookies_AnonymousReachableWithCookieForwarded()
+    {
+        await using var api = await ApiFactory.CreateAsync(_containers);
+        await using var gateway = new GatewayFactory(api, _containers.RedisConnectionString);
+        var email = TestData.NewEmail("gw-logout-cookie");
+        await TestData.CreateUserAsync(api, email);
+        var client = await LoginAsync(gateway, email);
+
+        var response = await client.SendAsync(HttpMethod.Post, "/api/v1/auth/logout", bearer: false);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.True(response.Headers.TryGetValues("Set-Cookie", out var setCookies), "Thiếu Set-Cookie qua Gateway.");
+        var cookies = setCookies.ToList();
+        var rt = cookies.Single(c => c.StartsWith("__Host-rt=")).ToLowerInvariant();
+        var csrf = cookies.Single(c => c.StartsWith("__Host-csrf=")).ToLowerInvariant();
+        foreach (var cookie in new[] { rt, csrf })
+        {
+            Assert.Contains("secure", cookie);
+            Assert.Contains("samesite=strict", cookie);
+            Assert.Contains("path=/", cookie);
+            Assert.True(cookie.Contains("expires=") || cookie.Contains("max-age=0"),
+                $"Cookie không có dấu hiệu hết hạn qua Gateway: {cookie}");
+        }
+        Assert.Contains("httponly", rt);
+        Assert.DoesNotContain("httponly", csrf);
+        Assert.Null(client.RefreshToken);
+        Assert.Null(client.CsrfToken);
+    }
+
     [Fact]
     public async Task LogoutAll_ViaGateway_TokensOfAllFamiliesAre401_OtherUserStill200()
     {
