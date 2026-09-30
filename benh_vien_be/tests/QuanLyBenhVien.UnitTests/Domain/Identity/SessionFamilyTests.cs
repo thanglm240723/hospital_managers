@@ -73,6 +73,20 @@ public class SessionFamilyTests
     }
 
     [Fact]
+    public void Rotate_ConsumedTokenOnAlreadyRevokedFamily_KeepsOriginalReason()
+    {
+        var family = NewFamily();
+        family.Rotate("h1", "h2", T0.AddMinutes(1));
+        family.Revoke(SessionRevokeReason.Logout, T0.AddMinutes(2));
+
+        var result = family.Rotate("h1", "h3", T0.AddMinutes(3));
+
+        Assert.Equal(RotationResult.NotActive, result);
+        Assert.Equal(SessionRevokeReason.Logout, family.RevokeReason);
+        Assert.Equal(T0.AddMinutes(2), family.RevokedAtUtc);
+    }
+
+    [Fact]
     public void Revoke_IsIdempotentAndKeepsFirstReason()
     {
         var family = NewFamily();
