@@ -61,6 +61,7 @@ public static class DependencyInjection
         services.AddScoped<IAccessTokenIssuer, JwtTokenService>();
         services.AddSingleton<IRefreshTokenGenerator, RefreshTokenGenerator>();
         services.AddSingleton<ICsrfTokenService, CsrfTokenService>();
+        services.AddSingleton<IRequestOriginPolicy, RequestOriginPolicy>();
         services.AddSingleton<ISessionCache, SessionCache>();
         services.AddSingleton<ICacheKeyEvictor, RedisCacheKeyEvictor>();
         services.AddHostedService<CacheInvalidationWorker>();

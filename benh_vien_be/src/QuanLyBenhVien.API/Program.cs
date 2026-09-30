@@ -48,6 +48,7 @@ public class Program
         app.UseAuthentication();
         app.UseMiddleware<UserLogContextMiddleware>();
         app.UseAuthorization();
+        app.UseMiddleware<PasswordChangeGateMiddleware>();
 
         app.MapCarter();
         app.MapHealthChecks("/health").AllowAnonymous();

@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using QuanLyBenhVien.Application.Features.Auth.ChangePassword;
 using QuanLyBenhVien.Application.Features.Auth.Common;
 using QuanLyBenhVien.Application.Features.Auth.GetMe;
 using QuanLyBenhVien.Application.Features.Auth.Login;
@@ -26,14 +27,22 @@ public sealed class AuthEndpoints : ICarterModule
         .WithName("RefreshV1");
         group.MapPost("/logout", LogoutAsync)
         .AllowAnonymous()
+        .AllowWhilePasswordChangeRequired()
         .WithName("LogoutV1");
         group.MapGet("/me", MeAsync)
         .RequireAuthorization()
+        .AllowWhilePasswordChangeRequired()
         .WithName("MeV1");
         group.MapPost("/change-password", ChangePasswordAsync)
         .RequireAuthorization()
+        .RequireCsrf()
+        .AllowWhilePasswordChangeRequired()
         .WithName("ChangePasswordV1");
-        group.MapPost("/logout-all", LogoutAllAsync).RequireAuthorization().WithName("LogoutAllV1");
+        group.MapPost("/logout-all", LogoutAllAsync)
+        .RequireAuthorization()
+        .RequireCsrf()
+        .AllowWhilePasswordChangeRequired()
+        .WithName("LogoutAllV1");
        
     }
 
@@ -62,8 +71,12 @@ public sealed class AuthEndpoints : ICarterModule
         return result.IsFailure ? result.Error!.ToProblem(http) : Results.Ok(result.Value);
     }
 
-    private static Task<IResult> ChangePasswordAsync(ChangePasswordRequest req, HttpContext http, ISender sender, CancellationToken ct) =>
-        Task.FromResult(NotImplemented(http));
+    private static async Task<IResult> ChangePasswordAsync(ChangePasswordRequest req, HttpContext http, ISender sender, CancellationToken ct)
+    {
+        // Thành công chỉ trả AccessTokenDto; giữ nguyên refresh cookie/family hiện tại.
+        var result = await sender.Send(new ChangePasswordCommand(req.CurrentPassword, req.NewPassword), ct);
+        return result.IsFailure ? result.Error!.ToProblem(http) : Results.Ok(result.Value);
+    }
 
     private static Task<IResult> LogoutAllAsync(HttpContext http, ISender sender, CancellationToken ct) =>
         Task.FromResult(NotImplemented(http));
