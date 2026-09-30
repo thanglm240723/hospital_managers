@@ -27,7 +27,12 @@ class Login extends React.Component {
     event.preventDefault();
     this.setState({ submitting: true, error: null });
     try {
-      await this.props.login(this.state.email, this.state.password);
+      const result = await this.props.login(this.state.email, this.state.password);
+      if (result === null) {
+        // Phiên đổi giữa chừng (đăng xuất/đăng nhập ở tab khác trong lúc chờ): kết quả bị bỏ qua, không phải lỗi
+        // của người dùng — chỉ thoát trạng thái đang gửi để form dùng lại được.
+        this.setState({ submitting: false });
+      }
     } catch (error) {
       // 401/429: hiện nguyên message server — server đã cố ý không phân biệt nguyên nhân.
       const wait = error.response && error.response.status === 429 ? retryAfterSeconds(error) : null;

@@ -169,6 +169,35 @@ public class LogoutTests
     }
 
     [Fact]
+    public async Task LogoutAll_CurrentFamilyExpired_OtherFamilyActive_Returns401_NothingRevoked()
+    {
+        await using var api = await ApiFactory.CreateAsync(_containers);
+        var email = TestData.NewEmail("logout-all");
+        await TestData.CreateUserAsync(api, email);
+        var a = await LoginAsync(api, email);
+        var b = await LoginAsync(api, email);
+
+        // Family hiện tại (a) đã quá hạn tuyệt đối nhưng chưa bị thu hồi; family khác (b) của cùng user vẫn còn hiệu lực.
+        await ExpireFamilyAsync(api, Fid(a));
+
+        var response = await a.SendAsync(HttpMethod.Post, LogoutAll);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal(SessionStatus.Active, await StatusAsync(api, Fid(a)));
+        Assert.Null(await ReasonAsync(api, Fid(a)));
+        Assert.Equal(SessionStatus.Active, await StatusAsync(api, Fid(b)));
+        Assert.Null(await ReasonAsync(api, Fid(b)));
+    }
+
+    private static async Task ExpireFamilyAsync(ApiFactory api, Guid familyId)
+    {
+        await using var scope = api.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.SessionFamilies.Where(f => f.Id == familyId)
+            .ExecuteUpdateAsync(s => s.SetProperty(f => f.AbsoluteExpiresAtUtc, DateTimeOffset.UtcNow.AddDays(-1)));
+    }
+
+    [Fact]
     public async Task Race_LoginQueuedBeforeLogoutAll_LoginFamilyIsRevoked_LaterLoginStaysActive()
     {
         await using var api = await ApiFactory.CreateAsync(_containers);
