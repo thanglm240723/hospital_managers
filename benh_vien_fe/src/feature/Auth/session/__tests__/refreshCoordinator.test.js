@@ -235,3 +235,89 @@ describe('cross-tab generation counter (fix rounds 1 & 2)', () => {
     }
   });
 });
+
+describe('broadcast token cũ sau logout', () => {
+  let instances;
+  let modules;
+
+  class RecordingChannel {
+    constructor() {
+      this.onmessage = null;
+      this.sent = [];
+      instances.push(this);
+    }
+
+    postMessage(message) {
+      this.sent.push(message);
+    }
+
+    close() {}
+  }
+
+  const deliver = message => instances[0].onmessage({ data: message });
+  const fresh = () => new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+  beforeEach(() => {
+    instances = [];
+    global.BroadcastChannel = RecordingChannel;
+    jest.resetModules();
+    modules = {
+      coordinator: require('../refreshCoordinator'), // eslint-disable-line global-require
+      store: require('../tokenStore'), // eslint-disable-line global-require
+      lifecycle: require('../sessionLifecycle'), // eslint-disable-line global-require
+      client: require('../../api/authClient'), // eslint-disable-line global-require
+    };
+    modules.coordinator.startAuthSync();
+  });
+
+  afterEach(() => {
+    delete global.BroadcastChannel;
+  });
+
+  it('remote logout xoá token và bỏ qua token tự phát đến sau đó', () => {
+    const listener = jest.fn();
+    modules.lifecycle.beginSessionTransition();
+    modules.coordinator.onRemoteLogout(listener);
+    modules.store.setAccessToken('mine', fresh());
+
+    deliver({ type: 'logout' });
+    deliver({ type: 'token', accessToken: 'stale', expiresAtUtc: fresh() });
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(modules.store.getAccessToken()).toBeNull();
+  });
+
+  it('phản hồi need-token có requestId không khớp bị bỏ qua', () => {
+    modules.lifecycle.beginSessionTransition();
+
+    deliver({ type: 'token', requestId: 'khong-khop', accessToken: 'x', expiresAtUtc: fresh() });
+
+    expect(modules.store.getAccessToken()).toBeNull();
+  });
+
+  it('token broadcast khi phiên đang hoạt động vẫn được nhận', () => {
+    modules.lifecycle.beginSessionTransition();
+
+    deliver({ type: 'token', accessToken: 'ok', expiresAtUtc: fresh() });
+
+    expect(modules.store.getAccessToken()).toBe('ok');
+  });
+
+  it('refresh trả về sau logout: không áp dụng token, không phát token', async () => {
+    let resolveRefresh;
+    modules.client.refresh.mockReturnValue(
+      new Promise((r) => {
+        resolveRefresh = r;
+      }),
+    );
+    modules.lifecycle.beginSessionTransition();
+
+    const pending = modules.coordinator.refreshAccessToken();
+    modules.lifecycle.invalidateLocalSession();
+    resolveRefresh({ accessToken: 'late', expiresAtUtc: fresh() });
+
+    await expect(pending).rejects.toThrow('session ended');
+    expect(modules.store.getAccessToken()).toBeNull();
+    expect(instances[0].sent.some(m => m.type === 'token')).toBe(false);
+  });
+});

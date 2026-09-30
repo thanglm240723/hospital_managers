@@ -1,54 +1,69 @@
 import http from '../../../service/http';
 import * as authClient from '../api/authClient';
-import { refreshAccessToken, broadcastLogout } from '../session/refreshCoordinator';
+import { refreshAccessToken, broadcastLogout, cancelPendingTokenRequests } from '../session/refreshCoordinator';
+import { beginSessionTransition, getSessionEpoch, invalidateLocalSession, isCurrentSessionEpoch } from '../session/sessionLifecycle';
 import { setAccessToken, clearAccessToken } from '../session/tokenStore';
 import {
   AUTH_BOOTING, AUTH_AUTHENTICATED, AUTH_ANONYMOUS, AUTH_LOGGED_OUT,
 } from './actionTypes';
 
 export const SESSION_EXPIRED_MESSAGE = 'Phiên đăng nhập đã hết hiệu lực. Vui lòng đăng nhập lại.';
+export const LOGOUT_UNCONFIRMED_MESSAGE = 'Đã thoát trên thiết bị này; chưa xác nhận thu hồi phiên trên máy chủ.';
 
-export const loadMe = () => async (dispatch) => {
+// epoch: phiên lúc bắt đầu gọi. Nếu phiên đã kết thúc (logout) khi /me trả về thì bỏ qua kết quả.
+export const loadMe = (epoch = getSessionEpoch()) => async (dispatch) => {
   const { data } = await http.get('v1/auth/me');
+  if (!isCurrentSessionEpoch(epoch)) return null;
   dispatch({ type: AUTH_AUTHENTICATED, payload: data });
   return data;
 };
 
 // Khởi động/F5: không có token trong RAM ⇒ thử refresh bằng cookie.
 export const bootAuth = () => async (dispatch) => {
+  const epoch = beginSessionTransition();
   dispatch({ type: AUTH_BOOTING });
   try {
     await refreshAccessToken();
-    await dispatch(loadMe());
+    await dispatch(loadMe(epoch));
   } catch (error) {
+    if (!isCurrentSessionEpoch(epoch)) return;
     clearAccessToken();
     dispatch({ type: AUTH_ANONYMOUS });
   }
 };
 
 export const login = (email, password) => async (dispatch) => {
+  const epoch = beginSessionTransition();
   const data = await authClient.login(email, password);
+  // Logout/đăng nhập khác xảy ra trong lúc chờ: không áp dụng token đến muộn.
+  if (!isCurrentSessionEpoch(epoch)) return null;
   setAccessToken(data.accessToken, data.expiresAtUtc);
-  return dispatch(loadMe());
+  return dispatch(loadMe(epoch));
 };
 
-function endLocalSession(dispatch, message) {
-  clearAccessToken();
-  dispatch({ type: AUTH_LOGGED_OUT, payload: message || null });
+function endLocalSession() {
+  cancelPendingTokenRequests();
+  invalidateLocalSession();
 }
 
+// Xoá phiên cục bộ ngay (token RAM + toàn bộ state qua AUTH_LOGGED_OUT) rồi báo server đúng một lần.
+// Server lỗi: không retry, không báo thu hồi thành công giả.
 export const logout = message => async (dispatch) => {
+  endLocalSession();
+  const epoch = getSessionEpoch();
+  dispatch({ type: AUTH_LOGGED_OUT, payload: message || null });
+  broadcastLogout();
   try {
     await authClient.logout();
   } catch (error) {
-    // Vẫn xoá phiên cục bộ dù server không phản hồi.
+    // Không log lỗi (có thể chứa header/cookie). Chỉ báo nếu người dùng chưa đăng nhập lại.
+    if (isCurrentSessionEpoch(epoch)) dispatch({ type: AUTH_LOGGED_OUT, payload: LOGOUT_UNCONFIRMED_MESSAGE });
   }
-  endLocalSession(dispatch, message);
-  broadcastLogout();
 };
 
 export const expireSession = () => (dispatch) => {
-  endLocalSession(dispatch, SESSION_EXPIRED_MESSAGE);
+  endLocalSession();
+  dispatch({ type: AUTH_LOGGED_OUT, payload: SESSION_EXPIRED_MESSAGE });
   broadcastLogout();
 };
 
