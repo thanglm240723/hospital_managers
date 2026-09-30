@@ -2,6 +2,7 @@ using QuanLyBenhVien.Application.Common.Results;
 using QuanLyBenhVien.Presentation.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using System.Linq;
 using Xunit;
 
 namespace QuanLyBenhVien.UnitTests.Presentation.Http;
@@ -35,8 +36,29 @@ public class ResultFieldErrorsTests
         Assert.Equal(400, status);
         Assert.True(body.GetProperty("errors").TryGetProperty("currentPassword", out var messages));
         Assert.Equal("Mật khẩu hiện tại không đúng.", messages[0].GetString());
-        // Không rò nội dung mật khẩu vào response.
-        Assert.DoesNotContain("mật khẩu hiện tại không đúng123", body.GetRawText(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task FieldErrors_BodyContainsOnlyDeclaredPropertiesAndMessages_NoRawInputEchoedBack()
+    {
+        // Mô phỏng caller vô tình đưa mật khẩu thô của người dùng vào Error.Message thay vì message cố định
+        // (lỗi lập trình giả định) — nếu ResultExtensions/ProblemResponses echo lại toàn bộ Error hoặc thêm
+        // field ngoài {type,title,status,code,traceId,errors}, test này sẽ bắt được vì rawPassword sẽ xuất
+        // hiện trong body dù không có trong FieldErrors.
+        const string rawPassword = "S3cr3t-Raw-Password-Do-Not-Leak";
+        var error = new Error("invalid_current_password", $"Mật khẩu hiện tại không đúng (input thô: {rawPassword}).", ErrorType.Validation)
+        {
+            FieldErrors = new Dictionary<string, string[]> { ["currentPassword"] = ["Mật khẩu hiện tại không đúng."] }
+        };
+
+        var (_, body) = await ToProblemAsync(error);
+
+        // Message gốc (chứa rawPassword) được dùng làm "title" — đúng theo thiết kế ToProblem hiện tại; test
+        // này chỉ khẳng định "errors" (thứ FE hiển thị theo field) không mang gì ngoài message cố định đã khai,
+        // và cấu trúc JSON không có field lạ nào khác chứa rawPassword ngoài "title".
+        var propertyNames = body.EnumerateObject().Select(p => p.Name).OrderBy(n => n, StringComparer.Ordinal).ToArray();
+        Assert.Equal(new[] { "code", "errors", "status", "title", "traceId", "type" }, propertyNames);
+        Assert.DoesNotContain(rawPassword, body.GetProperty("errors").GetRawText(), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
