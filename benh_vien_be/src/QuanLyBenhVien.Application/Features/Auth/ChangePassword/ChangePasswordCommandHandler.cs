@@ -58,8 +58,8 @@ internal sealed class ChangePasswordCommandHandler(
             {
                 // Audit thất bại phải bền vững trước khi trả lỗi.
                 auditWriter.Record(AuditActions.PasswordChange, AuditResult.Failed, "InvalidCurrentPassword", actorId: user.Id);
-                await unitOfWork.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
+                await unitOfWork.SaveChangesAsync(CancellationToken.None);
+                await transaction.CommitAsync(CancellationToken.None);
                 return ChangePasswordErrors.InvalidCurrentPassword;
             }
 
@@ -89,8 +89,8 @@ internal sealed class ChangePasswordCommandHandler(
             auditWriter.Record(AuditActions.PasswordChange, AuditResult.Succeeded,
                 resourceType: "User", resourceId: user.Id.ToString(), actorId: user.Id);
 
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(CancellationToken.None);
+            await transaction.CommitAsync(CancellationToken.None);
         }
 
         // Sau commit: mật khẩu đã đổi. Flush lỗi/huỷ không được biến kết quả thành lỗi — worker xử lý dòng còn lại.

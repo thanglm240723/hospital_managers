@@ -54,6 +54,8 @@ file sealed class FakeTransaction(List<string> timeline) : IUnitOfWorkTransactio
 {
     public Task CommitAsync(CancellationToken ct = default)
     {
+        // Mô phỏng EF/Npgsql: token đã huỷ ⇒ commit không xảy ra.
+        ct.ThrowIfCancellationRequested();
         timeline.Add("commit");
         return Task.CompletedTask;
     }
@@ -69,6 +71,7 @@ file sealed class FakeUnitOfWork(List<string> timeline) : IUnitOfWork
 {
     public Task<int> SaveChangesAsync(CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
         timeline.Add("save");
         return Task.FromResult(1);
     }
@@ -270,5 +273,22 @@ public class ChangePasswordCommandHandlerTests
         Assert.Equal(ErrorType.Unauthorized, result.Error!.Type);
         Assert.DoesNotContain("commit", f.Timeline);
         Assert.Equal("hash:" + Fixture.CurrentPassword, f.User.PasswordHash);
+    }
+
+    // Client ngắt kết nối sau khi đã khóa/kiểm tra: quyết định ghi đã chốt thì Save/Commit không được bị huỷ theo request.
+    [Theory]
+    [InlineData(Fixture.CurrentPassword, "succeeded")]
+    [InlineData("Wrong-Password-1", "failed")]
+    public async Task RequestCancelledAfterDecision_StillSavesAndCommits(string current, string outcome)
+    {
+        var f = new Fixture();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var result = await f.CreateHandler().Handle(new ChangePasswordCommand(current, NewPassword), cts.Token);
+
+        Assert.Equal(outcome == "succeeded", result.IsSuccess);
+        Assert.Contains("save", f.Timeline);
+        Assert.Contains("commit", f.Timeline);
     }
 }
