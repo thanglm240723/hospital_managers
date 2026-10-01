@@ -21,8 +21,6 @@
 
   <!-- Chờ slice phân quyền/health: mã cũ phụ thuộc AppDbContext/port cũ, chưa build được với khung mới. -->
   <ItemGroup>
-    <Compile Remove="Identity\PermissionService.cs" /> <!-- chờ slice phân quyền -->
-    <Compile Remove="Identity\PermissionCachePayload.cs" /> <!-- chờ slice phân quyền -->
     <Compile Remove="HealthChecks\DatabaseHealthCheck.cs" /> <!-- chờ slice health -->
   </ItemGroup>
 
