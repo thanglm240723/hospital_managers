@@ -104,13 +104,15 @@ public class PermissionPolicyTests
     }
 
     [Fact]
-    public async Task Handler_InactiveUser_Fails()
+    public async Task Handler_InactiveUser_FailsAsUnauthenticated_EvenWithPermission()
     {
-        var context = Context(Access(false, false), Permissions.Users.Read);
+        var context = Context(Access(false, false, Permissions.Users.Read), Permissions.Users.Read);
 
         await Handle(context);
 
         Assert.False(context.HasSucceeded);
+        Assert.Contains(context.FailureReasons,
+            r => r.Message == PermissionAuthorizationHandler.UnauthenticatedReason && r.Handler is PermissionAuthorizationHandler);
     }
 
     [Fact]

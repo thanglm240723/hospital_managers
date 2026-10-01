@@ -1,5 +1,10 @@
+using QuanLyBenhVien.Application.Common.Identity;
 using QuanLyBenhVien.Domain.Identity;
+using QuanLyBenhVien.Infrastructure.Caching;
+using QuanLyBenhVien.IntegrationTests.Helpers;
 using QuanLyBenhVien.Persistence;
+using QuanLyBenhVien.Persistence.Caching;
+using StackExchange.Redis;
 using QuanLyBenhVien.Persistence.Seed;
 using QuanLyBenhVien.IntegrationTests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -36,6 +41,56 @@ public class SeedTests
         var admin = await db.Users.Include(u => u.RoleAssignments).SingleAsync(u => u.Email == factory.AdminEmail);
         Assert.True(admin.MustChangePassword);
         Assert.True(admin.HasRole(adminRole.Id));
+    }
+
+    private static async Task<UserAccessDto?> AccessAsync(ApiFactory factory, Guid userId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<IPermissionService>().GetAsync(userId, CancellationToken.None);
+    }
+
+    private static async Task RunSeederAsync(ApiFactory factory)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<IdentitySeeder>().SeedAsync();
+    }
+
+    [Fact]
+    public async Task Seeder_AdminPermissionSetExtended_InvalidatesCachedPermissionsOfRoleHolders()
+    {
+        await using var factory = await ApiFactory.CreateAsync(_containers, configureServices: TestServices.RemoveCacheInvalidationWorker);
+        var userId = await TestData.CreateUserAsync(factory, TestData.NewEmail(), roleCodes: [SystemRoles.Admin]);
+        var redis = factory.Services.GetRequiredService<IConnectionMultiplexer>().GetDatabase();
+
+        // Mô phỏng catalog cũ: admin chưa có quyền `extended`, cache đã được làm ấm với tập quyền cũ.
+        var extended = Permissions.IdentityAccess.Select(p => p.Code).Last();
+        await TestData.QueryAsync(factory, async db =>
+        {
+            await db.Set<RolePermission>().Where(rp => rp.PermissionCode == extended).ExecuteDeleteAsync();
+            return 0;
+        });
+        await redis.KeyDeleteAsync(CacheKeys.Permissions(userId));
+        Assert.DoesNotContain(extended, (await AccessAsync(factory, userId))!.Permissions);
+        Assert.True(await redis.KeyExistsAsync(CacheKeys.Permissions(userId)));
+
+        await RunSeederAsync(factory);
+
+        Assert.Contains(extended, (await AccessAsync(factory, userId))!.Permissions);   // request kế tiếp thấy quyền mới
+    }
+
+    [Fact]
+    public async Task Seeder_AdminPermissionSetUnchanged_LeavesPermissionCacheUntouched()
+    {
+        await using var factory = await ApiFactory.CreateAsync(_containers, configureServices: TestServices.RemoveCacheInvalidationWorker);
+        var userId = await TestData.CreateUserAsync(factory, TestData.NewEmail(), roleCodes: [SystemRoles.Admin]);
+        var redis = factory.Services.GetRequiredService<IConnectionMultiplexer>().GetDatabase();
+        await AccessAsync(factory, userId);
+        Assert.True(await redis.KeyExistsAsync(CacheKeys.Permissions(userId)));
+
+        await RunSeederAsync(factory);
+
+        Assert.True(await redis.KeyExistsAsync(CacheKeys.Permissions(userId)));
+        Assert.Equal(0, await TestData.QueryAsync(factory, db => db.Set<CacheInvalidation>().CountAsync()));
     }
 
     [Fact]

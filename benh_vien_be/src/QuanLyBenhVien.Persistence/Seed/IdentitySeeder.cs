@@ -1,3 +1,4 @@
+using QuanLyBenhVien.Application.Common.Caching;
 using QuanLyBenhVien.Application.Common.Security;
 using QuanLyBenhVien.Domain.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -14,9 +15,12 @@ internal sealed class IdentitySeeder
     private readonly TimeProvider _time;
     private readonly ILogger<IdentitySeeder> _logger;
 
+    private readonly ICacheInvalidator _cacheInvalidator;
+
     public IdentitySeeder(AppDbContext db, IPasswordHasher passwordHasher, IOptions<SeedOptions> options,
-        TimeProvider time, ILogger<IdentitySeeder> logger)
+        TimeProvider time, ILogger<IdentitySeeder> logger, ICacheInvalidator cacheInvalidator)
     {
+        _cacheInvalidator = cacheInvalidator;
         _db = db;
         _passwordHasher = passwordHasher;
         _options = options.Value;
@@ -58,10 +62,21 @@ internal sealed class IdentitySeeder
         }
 
         var admin = roles[SystemRoles.Admin];
-        admin.SetPermissions(admin.GrantedPermissions.Select(p => p.PermissionCode)
-            .Union(Permissions.IdentityAccess.Select(p => p.Code)));
+        var before = admin.GrantedPermissions.Select(p => p.PermissionCode).ToHashSet(StringComparer.Ordinal);
+        admin.SetPermissions(before.Union(Permissions.IdentityAccess.Select(p => p.Code)));
+        var changed = !before.SetEquals(admin.GrantedPermissions.Select(p => p.PermissionCode));
+
+        if (changed)
+        {
+            // Cache quyền `perm:{userId}` không có TTL: đổi tập quyền của vai trò phải xoá cache của mọi người đang giữ vai trò,
+            // ghi cùng SaveChanges với thay đổi quyền (xoá thật ở FlushAsync sau commit, hoặc worker nếu flush lỗi).
+            var holders = await _db.Set<UserRole>().Where(r => r.RoleId == admin.Id).Select(r => r.UserId).ToListAsync(ct);
+            foreach (var userId in holders)
+                _cacheInvalidator.InvalidatePermissions(userId);
+        }
 
         await _db.SaveChangesAsync(ct);
+        if (changed) await _cacheInvalidator.FlushAsync(ct);
         return admin;
     }
 

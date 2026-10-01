@@ -102,6 +102,30 @@ public class AuthorizationPipelineTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task DeactivatedUserWithValidJwt_Returns401_WithoutDenialAudit()
+    {
+        var (userId, client) = await UserAsync(false, SystemRoles.Admin);
+        Assert.Equal(HttpStatusCode.OK, (await client.SendAsync(HttpMethod.Post, PermissionProbeModule.Protected)).StatusCode);
+        await TestData.QueryAsync(_factory, async db =>
+        {
+            await db.Users.Where(u => u.Id == userId).ExecuteUpdateAsync(s => s.SetProperty(u => u.IsActive, false));
+            return 0;
+        });
+        // Xoá cache quyền để request kế tiếp đọc trạng thái khóa từ DB (JWT vẫn còn hạn).
+        await _factory.Services.GetRequiredService<StackExchange.Redis.IConnectionMultiplexer>().GetDatabase()
+            .KeyDeleteAsync(QuanLyBenhVien.Infrastructure.Caching.CacheKeys.Permissions(userId));
+        var before = PermissionProbeModule.Hits;
+
+        var response = await client.SendAsync(HttpMethod.Post, PermissionProbeModule.Protected);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal("unauthenticated", await CodeAsync(response));
+        Assert.Equal(before, PermissionProbeModule.Hits);
+        Assert.False(await TestData.QueryAsync(_factory, db =>
+            db.AuditRecords.AnyAsync(a => a.Action == AuditActions.AuthorizationDenied && a.ActorId == userId)));
+    }
+
+    [Fact]
     public async Task AuditWriteFails_RequestIsNotExecuted()
     {
         var (_, client) = await UserAsync();

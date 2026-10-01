@@ -23,7 +23,8 @@ public sealed class PermissionAuthorizationHandler : AuthorizationHandler<Permis
         }
 
         var access = await http.RequestServices.GetRequiredService<IPermissionService>().GetAsync(userId, http.RequestAborted);
-        if (access is null)
+        // Tài khoản không tồn tại hoặc đã khóa: coi như chưa xác thực (401), không phải thiếu quyền (403 + audit).
+        if (access is null || !access.IsActive)
         {
             context.Fail(new AuthorizationFailureReason(this, UnauthenticatedReason));
             return;
@@ -36,7 +37,7 @@ public sealed class PermissionAuthorizationHandler : AuthorizationHandler<Permis
             return;
         }
 
-        if (access.IsActive && access.Permissions.Contains(requirement.Permission))
+        if (access.Permissions.Contains(requirement.Permission))
             context.Succeed(requirement);
         else
             context.Fail();

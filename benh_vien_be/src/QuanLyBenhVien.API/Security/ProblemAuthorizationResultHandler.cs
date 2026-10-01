@@ -31,7 +31,10 @@ public sealed class ProblemAuthorizationResultHandler : IAuthorizationMiddleware
             return;
         }
 
-        var reasons = authorizeResult.AuthorizationFailure?.FailureReasons.Select(r => r.Message).ToList() ?? [];
+        // Chỉ tin lý do do chính PermissionAuthorizationHandler phát ra, không so khớp chuỗi message của handler khác.
+        var reasons = authorizeResult.AuthorizationFailure?.FailureReasons
+            .Where(r => r.Handler is PermissionAuthorizationHandler)
+            .Select(r => r.Message).ToList() ?? [];
         if (reasons.Contains(PermissionAuthorizationHandler.UnauthenticatedReason))
         {
             await Write(context, StatusCodes.Status401Unauthorized, "unauthenticated", "Chưa đăng nhập hoặc phiên đã hết hạn.");
