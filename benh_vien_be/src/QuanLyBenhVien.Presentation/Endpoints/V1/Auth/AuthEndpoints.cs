@@ -3,12 +3,14 @@ using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using QuanLyBenhVien.Application.Common.Results;
 using QuanLyBenhVien.Application.Features.Auth.ChangePassword;
 using QuanLyBenhVien.Application.Features.Auth.Common;
 using QuanLyBenhVien.Application.Features.Auth.GetMe;
 using QuanLyBenhVien.Application.Features.Auth.Login;
 using QuanLyBenhVien.Application.Features.Auth.Logout;
 using QuanLyBenhVien.Application.Features.Auth.LogoutAll;
+using QuanLyBenhVien.Application.Features.Auth.RefreshSession;
 using QuanLyBenhVien.Presentation.Auth;
 using QuanLyBenhVien.Presentation.Http;
 
@@ -26,6 +28,7 @@ public sealed class AuthEndpoints : ICarterModule
         .WithName("LoginV1");
         group.MapPost("/refresh", RefreshAsync)
         .AllowAnonymous()
+        .RequireRefreshCookieCsrf()
         .WithName("RefreshV1");
         group.MapPost("/logout", LogoutAsync)
         .AllowAnonymous()
@@ -62,8 +65,26 @@ public sealed class AuthEndpoints : ICarterModule
         return Results.Ok(new AccessTokenDto(tokens.AccessToken, tokens.AccessTokenExpiresAtUtc, tokens.MustChangePassword));
     }
 
-    private static Task<IResult> RefreshAsync(HttpContext http, ISender sender, CancellationToken ct) =>
-        Task.FromResult(NotImplemented(http));
+    private static async Task<IResult> RefreshAsync(HttpContext http, ISender sender, AuthCookieWriter cookies, CancellationToken ct)
+    {
+        // Đã qua filter CSRF (RequireRefreshCookieCsrf) khi cookie nhận diện được family; thiếu/rác ⇒ handler trả 401.
+        var cookie = http.Request.Cookies[AuthCookieWriter.RefreshCookie] ?? string.Empty;
+        var result = await sender.Send(new RefreshSessionCommand(cookie), ct);
+        if (result.IsFailure)
+        {
+            // 401 nghiệp vụ: xoá cookie để client không gửi lại token chết. Lỗi hạ tầng là exception ⇒ 5xx, không tới đây.
+            if (result.Error!.Type == ErrorType.Unauthorized)
+            {
+                cookies.Clear(http.Response);
+            }
+
+            return result.Error.ToProblem(http);
+        }
+
+        var tokens = result.Value;
+        cookies.Write(http.Response, tokens.RefreshToken, tokens.CsrfToken, tokens.SessionExpiresAtUtc);
+        return Results.Ok(new AccessTokenDto(tokens.AccessToken, tokens.AccessTokenExpiresAtUtc, tokens.MustChangePassword));
+    }
 
     private static async Task<IResult> LogoutAsync(HttpContext http, ISender sender, AuthCookieWriter cookies, CancellationToken ct)
     {
@@ -104,8 +125,4 @@ public sealed class AuthEndpoints : ICarterModule
         cookies.Clear(http.Response);
         return Results.NoContent();
     }
-
-    private static IResult NotImplemented(HttpContext http) =>
-        ProblemResponses.Create(http, StatusCodes.Status501NotImplemented, "not_implemented",
-            "Chức năng chưa được hỗ trợ.");
 }

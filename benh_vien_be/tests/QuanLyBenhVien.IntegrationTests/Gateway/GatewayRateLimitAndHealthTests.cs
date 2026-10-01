@@ -34,7 +34,7 @@ public class GatewayRateLimitAndHealthTests : IAsyncLifetime
         Assert.Equal(10, gateway.BackendRequests.Count(r => r.Path == Login));
     }
 
-    [Fact(Skip = "chờ slice refresh-logout")]
+    [Fact]
     public async Task ThirtyFirstRefreshFromSameIpWithinAMinute_Is429AtGateway()
     {
         await using var gateway = new GatewayFactory(_api, _containers.RedisConnectionString);
