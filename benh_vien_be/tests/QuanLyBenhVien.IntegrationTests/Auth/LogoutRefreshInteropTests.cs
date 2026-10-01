@@ -59,7 +59,10 @@ public class LogoutRefreshInteropTests : IAsyncLifetime
     public async Task Refresh_ReplayedOldToken_RevokesWholeFamily()
     {
         var client = await LoggedInAsync();
-        var stolen = client.CloneWith(_factory.CreateHttpsClient());   // bản sao nguyên cookie jar (token + CSRF cũ)
+        // CSRF gắn với family (CsrfProtectionFilter suy family từ cookie refresh), không đổi theo từng lần refresh.
+        // Nên kẻ giữ bản sao nguyên cookie jar (refresh token cũ + CSRF của nó) vẫn qua được CSRF khi replay;
+        // CloneWith mô phỏng đúng bản sao bị lộ đó để kiểm tra phía reuse detection thu hồi family.
+        var stolen = client.CloneWith(_factory.CreateHttpsClient());
         (await client.RefreshAsync()).EnsureSuccessStatusCode();
 
         var replay = await stolen.RefreshAsync();

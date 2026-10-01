@@ -76,4 +76,4 @@ Strict reuse, không grace window; family có hạn tuyệt đối 7 ngày. Refr
 - [ ] Full + Frontend + build FE, sau đó trình duyệt F5, mở tab, chờ refresh bằng cấu hình test không đổi policy production, logout nhiều tab. Kiểm access token chỉ RAM, refresh cookie HttpOnly, không log secrets.
 - [ ] Review diff và chuẩn bị mốc Git theo plan.md.
 
-**Trạng thái:** NOT_RUN. Sau plan này mới được nghiệm thu vòng đời phiên đầy đủ trong phạm vi ba plan đầu; chưa chứng minh phân quyền/luồng nghiệp vụ module sau.
+**Trạng thái:** kiểm thử tự động đã chạy xong (validate Full: UT 158 pass; IT 125 pass/8 skip; Frontend Jest 101 pass; FE build PASS). Kiểm tay trên trình duyệt: NOT_RUN, chờ người dùng. Sau plan này mới được nghiệm thu vòng đời phiên đầy đủ trong phạm vi ba plan đầu; chưa chứng minh phân quyền/luồng nghiệp vụ module sau.

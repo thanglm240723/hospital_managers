@@ -346,9 +346,9 @@ describe('broadcast token cũ sau logout', () => {
     const oldGen = gen();
     modules.store.setAccessToken('mine', fresh());
     // Tab khác đăng nhập: thế hệ phiên dùng chung tăng; tab này vẫn ở thế hệ cũ.
-    localStorage.setItem('auth:sessionGen', String(oldGen + 1));
+    localStorage.setItem('auth:sessionGen', 'other-tab-gen');
 
-    deliver({ type: 'token', sessionGen: oldGen + 1, accessToken: 'foreign', expiresAtUtc: fresh() });
+    deliver({ type: 'token', sessionGen: 'other-tab-gen', accessToken: 'foreign', expiresAtUtc: fresh() });
     deliver({ type: 'token', sessionGen: oldGen, accessToken: 'stale-gen', expiresAtUtc: fresh() });
 
     expect(modules.store.getAccessToken()).toBe('mine');
@@ -360,10 +360,21 @@ describe('broadcast token cũ sau logout', () => {
     modules.coordinator.onRemoteLogout(listener);
     modules.store.setAccessToken('mine', fresh());
 
-    deliver({ type: 'logout', sessionGen: gen() - 1 });
+    deliver({ type: 'logout', sessionGen: 'older-gen' });
 
     expect(listener).not.toHaveBeenCalled();
     expect(modules.store.getAccessToken()).toBe('mine');
+  });
+
+  it('hai lần claimSharedSession liên tiếp cho thế hệ khác nhau', () => {
+    modules.lifecycle.claimSharedSession();
+    const first = gen();
+    modules.lifecycle.claimSharedSession();
+
+    expect(first).toBeTruthy();
+    expect(gen()).toBeTruthy();
+    expect(gen()).not.toBe(first);
+    expect(localStorage.getItem('auth:sessionGen')).toBe(gen());
   });
 
   it('token phát sau refresh mang thế hệ phiên hiện tại', async () => {
@@ -381,7 +392,7 @@ describe('broadcast token cũ sau logout', () => {
     modules.lifecycle.beginSessionTransition();
     modules.store.setAccessToken('mine', fresh());
 
-    deliver({ type: 'need-token', requestId: 'r', sessionGen: gen() + 5 });
+    deliver({ type: 'need-token', requestId: 'r', sessionGen: 'newer-gen' });
     expect(instances[0].sent.some(m => m.type === 'token')).toBe(false);
 
     deliver({ type: 'need-token', requestId: 'r', sessionGen: gen() });
@@ -396,7 +407,7 @@ describe('broadcast token cũ sau logout', () => {
     modules.lifecycle.beginSessionTransition();
 
     const pending = modules.coordinator.refreshAccessToken();
-    localStorage.setItem('auth:sessionGen', String(gen() + 1));
+    localStorage.setItem('auth:sessionGen', 'other-tab-gen');
     resolveRefresh({ accessToken: 'other-account', expiresAtUtc: fresh() });
 
     await expect(pending).rejects.toThrow();

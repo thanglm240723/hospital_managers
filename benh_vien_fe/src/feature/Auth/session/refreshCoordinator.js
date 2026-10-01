@@ -81,6 +81,7 @@ function getChannel() {
   channel.onmessage = (event) => {
     const message = event.data || {};
     if (message.type === 'token' && acceptsBroadcastToken(message)) setAccessToken(message.accessToken, message.expiresAtUtc);
+    // Cố ý không dùng isFromMySession/isCurrentSharedSession: endSharedSession đã đổi thế hệ dùng chung trước khi phát logout nên các kiểm tra đó luôn sai.
     if (message.type === 'logout' && message.sessionGen === getSessionGeneration() && getSessionGeneration() !== null) {
       pendingRequestId = null;
       invalidateLocalSession();
