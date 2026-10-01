@@ -69,8 +69,9 @@ class Login extends React.Component {
   render() {
     const { status, mustChangePassword, location } = this.props;
     if (status === 'authenticated') {
-      const from = (location.state && location.state.from) || { pathname: '/start' };
-      return <Redirect to={mustChangePassword ? '/change-password' : from} />;
+      // Luôn qua /start: đổi mật khẩu → chọn khu vực của lần login này; return URL chỉ được /start dùng khi hợp lệ.
+      const from = location && location.state ? location.state.from : null;
+      return <Redirect to={mustChangePassword ? '/change-password' : { pathname: '/start', state: from ? { from } : undefined }} />;
     }
 
     const {

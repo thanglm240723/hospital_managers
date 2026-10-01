@@ -58,3 +58,32 @@ describe('shared history wiring (ConnectedRouter)', () => {
     expect(container.querySelector('[data-testid="screen"]').textContent).toBe('change-password');
   });
 });
+
+describe('route guard dùng registry chung (no loop)', () => {
+  // eslint-disable-next-line global-require
+  const { mountApp } = require('testUtils/appHarness');
+  // eslint-disable-next-line global-require
+  const { PERMISSIONS } = require('feature/Auth/permissionCodes');
+  let app;
+  afterEach(() => {
+    if (app) app.unmount();
+    app = null;
+  });
+
+  it('0 khu vực: /start ↔ /no-access ổn định ở /no-access', () => {
+    app = mountApp({ path: '/start', permissions: [] });
+    expect(app.history.location.pathname).toBe('/no-access');
+    act(() => { app.history.push('/start'); });
+    expect(app.history.location.pathname).toBe('/no-access');
+  });
+
+  it('có khu vực mà mở /no-access → về /start → màn đích', () => {
+    app = mountApp({ path: '/no-access', permissions: [PERMISSIONS.ROLES_READ] });
+    expect(app.history.location.pathname).toBe('/admin/roles');
+  });
+
+  it('route lạ → StartContainer → màn mặc định', () => {
+    app = mountApp({ path: '/khong-ton-tai', permissions: [PERMISSIONS.ROLES_READ] });
+    expect(app.history.location.pathname).toBe('/admin/roles');
+  });
+});
