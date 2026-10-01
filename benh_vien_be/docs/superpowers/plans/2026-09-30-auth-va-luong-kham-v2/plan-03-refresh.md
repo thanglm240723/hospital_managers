@@ -30,13 +30,13 @@ Strict reuse, không grace window; family có hạn tuyệt đối 7 ngày. Refr
 
 **Giao diện:** giữ `RefreshSessionCommand(string RefreshToken): ICommand<Result<AuthTokensResult>>`; dùng IRefreshSessionLookup plan 02, IUserRepository.GetForUpdateAsync plan 01, ISessionRepository.GetForUpdateAsync(familyId,presentedHash,ct), SessionFamily.Rotate(hash,newHash,now).
 
-- [ ] Test valid token: cũ ConsumedAtUtc, ReplacedById trỏ token mới, cùng family, LastRefreshedAtUtc cập nhật, AbsoluteExpiresAtUtc không đổi; `Assert.Single(usableTokens)`.
-- [ ] Test reuse consumed/revoked: family revoked, audit `auth.refresh.reuse`/Denied và invalidation đã commit trước khi trả 401. Token đã revoke không được repository lọc mất khiến nhánh reuse thành “không tìm thấy”.
-- [ ] Test family hết hạn/revoked hoặc User.IsActive=false không rotate. Không coi missing cookie là validator 400; endpoint map missing thành unauthorized.
-- [ ] Chạy `dotnet test tests/QuanLyBenhVien.IntegrationTests --filter FullyQualifiedName~RefreshRotation`; ghi nhận fail.
-- [ ] Implement định vị → khóa User → family/token → kiểm lại → rotate hoặc revoke → SaveChanges/Commit → flush nếu cần. Không throw Result failure trước commit ở nhánh reuse. Token mới lấy từ generator đã có, không dùng Guid làm secret.
-- [ ] Giữ `RotationResult` và reason của family nhất quán: family đã revoked không bị đổi reason sang Reuse tùy tiện; nếu đã active và trình token consumed thì phải ghi reuse. Đối chiếu/test rõ với spec §3.3.
-- [ ] Chạy lại test, thêm race refresh/change-password theo cùng thứ tự khóa và kiểm sv mới khi cấp access token.
+- [x] Test valid token: cũ ConsumedAtUtc, ReplacedById trỏ token mới, cùng family, LastRefreshedAtUtc cập nhật, AbsoluteExpiresAtUtc không đổi; `Assert.Single(usableTokens)`.
+- [x] Test reuse consumed/revoked: family revoked, audit `auth.refresh.reuse`/Denied và invalidation đã commit trước khi trả 401. Token đã revoke không được repository lọc mất khiến nhánh reuse thành “không tìm thấy”.
+- [x] Test family hết hạn/revoked hoặc User.IsActive=false không rotate. Không coi missing cookie là validator 400; endpoint map missing thành unauthorized.
+- [x] Chạy `dotnet test tests/QuanLyBenhVien.IntegrationTests --filter FullyQualifiedName~RefreshRotation`; ghi nhận fail.
+- [x] Implement định vị → khóa User → family/token → kiểm lại → rotate hoặc revoke → SaveChanges/Commit → flush nếu cần. Không throw Result failure trước commit ở nhánh reuse. Token mới lấy từ generator đã có, không dùng Guid làm secret.
+- [x] Giữ `RotationResult` và reason của family nhất quán: family đã revoked không bị đổi reason sang Reuse tùy tiện; nếu đã active và trình token consumed thì phải ghi reuse. Đối chiếu/test rõ với spec §3.3.
+- [x] Chạy lại test, thêm race refresh/change-password theo cùng thứ tự khóa và kiểm sv mới khi cấp access token.
 
 ## Task 2 — Endpoint, cookie và Gateway
 
@@ -44,11 +44,11 @@ Strict reuse, không grace window; family có hạn tuyệt đối 7 ngày. Refr
 
 **Test:** tạo `IT/Auth/RefreshHttpTests.cs`; cập nhật `IT/Gateway/GatewayRateLimitAndHealthTests.cs` theo phạm vi refresh.
 
-- [ ] Test thiếu/rác cookie → 401 và xóa `__Host-rt`/`__Host-csrf`; Origin/CSRF sai với family nhận diện được → 403, không rotate, không revoke chỉ do CSRF.
-- [ ] Test 200 JSON chỉ chứa accessToken/expiresAtUtc/mustChangePassword; Set-Cookie đủ thuộc tính; refresh không tăng hạn tuyệt đối và không tiết lộ token qua response body.
-- [ ] Chạy test RefreshHttp, implement thin endpoint gửi command và AuthCookieWriter. 401 nghiệp vụ clear cookie; lỗi phụ thuộc không bị đổi thành thành công/204.
-- [ ] Kiểm Gateway route anonymous đúng POST refresh, rate-limit 30/phút/IP theo spec; endpoint nội bộ vẫn bảo vệ khóa. Không thêm đường API khác để bypass.
-- [ ] Chạy lại tests; bảo đảm request refresh không qua axios interceptor gọi chính refresh lặp lại.
+- [x] Test thiếu/rác cookie → 401 và xóa `__Host-rt`/`__Host-csrf`; Origin/CSRF sai với family nhận diện được → 403, không rotate, không revoke chỉ do CSRF.
+- [x] Test 200 JSON chỉ chứa accessToken/expiresAtUtc/mustChangePassword; Set-Cookie đủ thuộc tính; refresh không tăng hạn tuyệt đối và không tiết lộ token qua response body.
+- [x] Chạy test RefreshHttp, implement thin endpoint gửi command và AuthCookieWriter. 401 nghiệp vụ clear cookie; lỗi phụ thuộc không bị đổi thành thành công/204.
+- [x] Kiểm Gateway route anonymous đúng POST refresh, rate-limit 30/phút/IP theo spec; endpoint nội bộ vẫn bảo vệ khóa. Không thêm đường API khác để bypass.
+- [x] Chạy lại tests; bảo đảm request refresh không qua axios interceptor gọi chính refresh lặp lại.
 
 ## Task 3 — FE F5, single-flight và race logout
 
@@ -58,21 +58,21 @@ Strict reuse, không grace window; family có hạn tuyệt đối 7 ngày. Refr
 
 **Giao diện giữ:** `refreshAccessToken(): Promise<string>`, `bootAuth()`, `startRefreshScheduler(onFailure)`. Tái dùng epoch plan 02: kiểm trước áp dụng response vào tokenStore; request bắt đầu trước logout không được broadcast token mới sau logout.
 
-- [ ] Test cold boot refresh → me → authenticated; refresh 401 → anonymous và xóa state; quyền/mustChangePassword lấy lại từ me, không tự đoán từ role cũ.
-- [ ] Test cùng tab 10 yêu cầu 401 dùng một promise refresh; mỗi request retry tối đa một lần; giữ headers/body/Idempotency-Key và không ghép baseURL hai lần.
-- [ ] Test Web Locks + broadcast đến trễ + một tab mới không có token; không gửi lại token consumed vì đếm nhầm generation. Trình duyệt thiếu Web Locks có rủi ro strict reuse đã ghi trong spec, không tuyên bố bảo đảm mọi trình duyệt.
-- [ ] Test response refresh sau logout/đăng nhập tài khoản khác không cập nhật token; thông điệp broadcast phải gắn thế hệ phiên hợp lệ, không chỉ `{type:'token'}` không ngữ cảnh. Cơ chế epoch phải dùng chung với login/change-password, tránh mỗi feature có cờ riêng.
-- [ ] Chạy Jest `refreshCoordinator|refreshScheduler|http|bootAuth|actions` để thấy đỏ, sửa tối thiểu, chạy lại. Không sửa coordinator chỉ vì muốn viết mới nếu test hiện có đã đáp ứng.
-- [ ] Test timer theo TimeProvider/fake timers phía tương ứng; không chờ 15 phút thật trong unit test. Refresh thành công lên lịch mới; logout dừng timer.
+- [x] Test cold boot refresh → me → authenticated; refresh 401 → anonymous và xóa state; quyền/mustChangePassword lấy lại từ me, không tự đoán từ role cũ.
+- [x] Test cùng tab 10 yêu cầu 401 dùng một promise refresh; mỗi request retry tối đa một lần; giữ headers/body/Idempotency-Key và không ghép baseURL hai lần.
+- [x] Test Web Locks + broadcast đến trễ + một tab mới không có token; không gửi lại token consumed vì đếm nhầm generation. Trình duyệt thiếu Web Locks có rủi ro strict reuse đã ghi trong spec, không tuyên bố bảo đảm mọi trình duyệt.
+- [x] Test response refresh sau logout/đăng nhập tài khoản khác không cập nhật token; thông điệp broadcast phải gắn thế hệ phiên hợp lệ, không chỉ `{type:'token'}` không ngữ cảnh. Cơ chế epoch phải dùng chung với login/change-password, tránh mỗi feature có cờ riêng.
+- [x] Chạy Jest `refreshCoordinator|refreshScheduler|http|bootAuth|actions` để thấy đỏ, sửa tối thiểu, chạy lại. Không sửa coordinator chỉ vì muốn viết mới nếu test hiện có đã đáp ứng.
+- [x] Test timer theo TimeProvider/fake timers phía tương ứng; không chờ 15 phút thật trong unit test. Refresh thành công lên lịch mới; logout dừng timer.
 
 ## Task 4 — Bật test liên tính năng và nghiệm thu
 
 **File sửa:** `IT/QuanLyBenhVien.IntegrationTests.csproj`; `IT/Auth/RefreshAndLogoutTests.cs`; bật `IT/Auth/PasswordChangeRefreshTests.cs`, `LogoutRefreshInteropTests.cs` đã tách ở 01/02; `VALIDATION.md` sau có output.
 
-- [ ] Port/bật test cũ còn đúng nghiệp vụ, tách helper không tự gọi admin change-password bất ngờ trong test không liên quan. Không bỏ assertion chỉ để test xanh.
-- [ ] Test hai HTTP refresh cùng token qua PostgreSQL: request đầu có thể 200, request sau reuse phải thu hồi family; không thể để cả hai token nhánh tiếp tục dùng được.
-- [ ] Test đổi password → current refresh được, other refresh 401; logout → refresh 401; logout-all → mọi family cũ refresh 401.
-- [ ] Test mất response refresh: token cũ không được retry tự động; lần trình lại theo strict reuse dẫn đến đăng nhập lại. Ghi UX này trong nghiệm thu.
+- [x] Port/bật test cũ còn đúng nghiệp vụ, tách helper không tự gọi admin change-password bất ngờ trong test không liên quan. Không bỏ assertion chỉ để test xanh.
+- [x] Test hai HTTP refresh cùng token qua PostgreSQL: request đầu có thể 200, request sau reuse phải thu hồi family; không thể để cả hai token nhánh tiếp tục dùng được.
+- [x] Test đổi password → current refresh được, other refresh 401; logout → refresh 401; logout-all → mọi family cũ refresh 401.
+- [x] Test mất response refresh: token cũ không được retry tự động; lần trình lại theo strict reuse dẫn đến đăng nhập lại. Ghi UX này trong nghiệm thu.
 - [ ] Full + Frontend + build FE, sau đó trình duyệt F5, mở tab, chờ refresh bằng cấu hình test không đổi policy production, logout nhiều tab. Kiểm access token chỉ RAM, refresh cookie HttpOnly, không log secrets.
 - [ ] Review diff và chuẩn bị mốc Git theo plan.md.
 
