@@ -1,7 +1,9 @@
 import http from '../../../service/http';
 import * as authClient from '../api/authClient';
 import { refreshAccessToken, broadcastLogout, cancelPendingTokenRequests } from '../session/refreshCoordinator';
-import { beginSessionTransition, getSessionEpoch, invalidateLocalSession, isCurrentSessionEpoch } from '../session/sessionLifecycle';
+import {
+  beginSessionTransition, claimSharedSession, endSharedSession, getSessionEpoch, getSessionGeneration, invalidateLocalSession, isCurrentSessionEpoch,
+} from '../session/sessionLifecycle';
 import { setAccessToken, clearAccessToken } from '../session/tokenStore';
 import {
   AUTH_BOOTING, AUTH_AUTHENTICATED, AUTH_ANONYMOUS, AUTH_LOGGED_OUT,
@@ -37,22 +39,27 @@ export const login = (email, password) => async (dispatch) => {
   const data = await authClient.login(email, password);
   // Logout/đăng nhập khác xảy ra trong lúc chờ: không áp dụng token đến muộn.
   if (!isCurrentSessionEpoch(epoch)) return null;
+  claimSharedSession();
   setAccessToken(data.accessToken, data.expiresAtUtc);
   return dispatch(loadMe(epoch));
 };
 
+// Trả về thế hệ phiên vừa kết thúc để báo logout cho đúng các tab cùng phiên.
 function endLocalSession() {
+  const sessionGen = getSessionGeneration();
+  endSharedSession();
   cancelPendingTokenRequests();
   invalidateLocalSession();
+  return sessionGen;
 }
 
 // Xoá phiên cục bộ ngay (token RAM + toàn bộ state qua AUTH_LOGGED_OUT) rồi báo server đúng một lần.
 // Server lỗi: không retry, không báo thu hồi thành công giả.
 export const logout = message => async (dispatch) => {
-  endLocalSession();
+  const sessionGen = endLocalSession();
   const epoch = getSessionEpoch();
   dispatch({ type: AUTH_LOGGED_OUT, payload: message || null });
-  broadcastLogout();
+  broadcastLogout(sessionGen);
   try {
     await authClient.logout();
   } catch (error) {
@@ -62,15 +69,18 @@ export const logout = message => async (dispatch) => {
 };
 
 export const expireSession = () => (dispatch) => {
-  endLocalSession();
+  const sessionGen = endLocalSession();
   dispatch({ type: AUTH_LOGGED_OUT, payload: SESSION_EXPIRED_MESSAGE });
-  broadcastLogout();
+  broadcastLogout(sessionGen);
 };
 
 // Chỉ đổi mật khẩu + giữ token mới trong RAM của tab này. Không tự gọi loadMe: gọi thất bại (mất
 // mạng, 401…) không được hiểu nhầm là đổi mật khẩu thất bại và không được kích hoạt POST lại.
+// Dùng chung epoch phiên: phản hồi đến sau logout không đặt lại token.
 export const changePassword = (currentPassword, newPassword) => async () => {
+  const epoch = getSessionEpoch();
   const { data } = await http.post('v1/auth/change-password', { currentPassword, newPassword });
+  if (!isCurrentSessionEpoch(epoch)) return data;
   setAccessToken(data.accessToken, data.expiresAtUtc);
   return data;
 };

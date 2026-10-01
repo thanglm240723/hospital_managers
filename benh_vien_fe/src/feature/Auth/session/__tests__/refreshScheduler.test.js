@@ -64,3 +64,32 @@ it('adds up to five seconds of jitter to the scheduled refresh delay, spreading 
   jest.advanceTimersByTime(1);
   expect(refreshAccessToken).toHaveBeenCalledTimes(1);
 });
+
+it('refresh thành công lên lịch lần tiếp theo theo expiresAt mới', async () => {
+  refreshAccessToken.mockImplementation(() => {
+    setAccessToken('b', new Date(Date.now() + 5 * 60 * 1000).toISOString());
+    return Promise.resolve('b');
+  });
+  startRefreshScheduler(jest.fn());
+  setAccessToken('a', new Date(Date.now() + 2 * 60 * 1000).toISOString());
+
+  jest.advanceTimersByTime(60 * 1000);
+  expect(refreshAccessToken).toHaveBeenCalledTimes(1);
+
+  jest.advanceTimersByTime(4 * 60 * 1000 - 1);
+  expect(refreshAccessToken).toHaveBeenCalledTimes(1);
+  jest.advanceTimersByTime(1);
+  expect(refreshAccessToken).toHaveBeenCalledTimes(2);
+});
+
+it('logout (huỷ phiên cục bộ) dừng timer', () => {
+  // eslint-disable-next-line global-require
+  const { invalidateLocalSession } = require('../sessionLifecycle');
+  startRefreshScheduler(jest.fn());
+  setAccessToken('a', new Date(Date.now() + 5 * 60 * 1000).toISOString());
+
+  invalidateLocalSession();
+  jest.advanceTimersByTime(30 * 60 * 1000);
+
+  expect(refreshAccessToken).not.toHaveBeenCalled();
+});

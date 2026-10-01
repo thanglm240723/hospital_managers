@@ -2,7 +2,9 @@ import { refresh as refreshRequest } from '../api/authClient';
 import {
   getAccessToken, getExpiresAt, setAccessToken, subscribe,
 } from './tokenStore';
-import { getSessionEpoch, isCurrentSessionEpoch, invalidateLocalSession, isAcceptingTokens } from './sessionLifecycle';
+import {
+  getSessionEpoch, isCurrentSessionEpoch, invalidateLocalSession, isAcceptingTokens, getSessionGeneration, isCurrentSharedSession,
+} from './sessionLifecycle';
 
 // Server dùng strict reuse (Đặc tả kỹ thuật §4.3): hai request refresh cùng một cookie ⇒ cả phiên bị thu hồi.
 // Vì vậy: 1 lời gọi/tab (single-flight) và 1 lời gọi/trình duyệt (Web Locks); tab xong thì phát token cho tab khác.
@@ -60,9 +62,15 @@ function writeGen(next) {
 
 subscribe((current) => { myTokenGen = current ? readGen() : null; });
 
+// Thông điệp chỉ có hiệu lực khi mang đúng thế hệ phiên dùng chung của tab này (không nhận `{type:'token'}` trần).
+function isFromMySession(message) {
+  const sessionGen = getSessionGeneration();
+  return sessionGen !== null && message.sessionGen === sessionGen && isCurrentSharedSession();
+}
+
 // Sau logout tab không nhận token tự phát; phản hồi need-token phải khớp requestId đang chờ.
 function acceptsBroadcastToken(message) {
-  if (!isAcceptingTokens()) return false;
+  if (!isAcceptingTokens() || !isFromMySession(message)) return false;
   if (message.requestId) return message.requestId === pendingRequestId;
   return true;
 }
@@ -73,17 +81,17 @@ function getChannel() {
   channel.onmessage = (event) => {
     const message = event.data || {};
     if (message.type === 'token' && acceptsBroadcastToken(message)) setAccessToken(message.accessToken, message.expiresAtUtc);
-    if (message.type === 'logout') {
+    if (message.type === 'logout' && message.sessionGen === getSessionGeneration() && getSessionGeneration() !== null) {
       pendingRequestId = null;
       invalidateLocalSession();
       remoteLogoutListeners.forEach(listener => listener());
     }
-    if (message.type === 'need-token') {
+    if (message.type === 'need-token' && isFromMySession(message)) {
       const token = getAccessToken();
       const expiresAt = getExpiresAt();
       if (token && expiresAt && expiresAt - Date.now() > FRESH_MARGIN_MS) {
         channel.postMessage({
-          type: 'token', requestId: message.requestId || null, accessToken: token, expiresAtUtc: new Date(expiresAt).toISOString(),
+          type: 'token', requestId: message.requestId || null, sessionGen: getSessionGeneration(), accessToken: token, expiresAtUtc: new Date(expiresAt).toISOString(),
         });
       }
     }
@@ -114,7 +122,7 @@ function waitForTokenFromOtherTabs(tokenAtStart) {
   requestSeq += 1;
   const requestId = `${Date.now()}-${requestSeq}`;
   pendingRequestId = requestId;
-  ch.postMessage({ type: 'need-token', requestId });
+  ch.postMessage({ type: 'need-token', requestId, sessionGen: getSessionGeneration() });
   return new Promise((resolve) => {
     const deadline = Date.now() + NEED_TOKEN_TIMEOUT_MS;
     const finish = (value) => {
@@ -136,8 +144,13 @@ export function refreshAccessToken() {
   const tokenAtStart = getAccessToken();
 
   const epoch = getSessionEpoch();
+  const sessionGen = getSessionGeneration();
+  // Request bắt đầu trước logout/đăng nhập tài khoản khác không được áp dụng hay phát token.
+  const stillMySession = () => isCurrentSessionEpoch(epoch) && sessionGen !== null && getSessionGeneration() === sessionGen && isCurrentSharedSession();
 
   inFlight = runExclusive(async () => {
+    // Phiên đã kết thúc/thay thế trước khi tới lượt: không dùng cookie (có thể thuộc phiên khác).
+    if (!stillMySession()) throw new Error('refresh discarded: session ended');
     if (isFreshTokenFromElsewhere(tokenAtStart)) return getAccessToken();
 
     // Compare a fresh in-lock read of the counter to the generation OUR current token is known
@@ -158,14 +171,14 @@ export function refreshAccessToken() {
 
     const data = await refreshRequest();
     // Logout (cục bộ hoặc tab khác) xảy ra trong lúc chờ: không áp dụng token đến muộn.
-    if (!isCurrentSessionEpoch(epoch)) throw new Error('refresh discarded: session ended');
+    if (!stillMySession()) throw new Error('refresh discarded: session ended');
     // Write the counter BEFORE setting the token: setAccessToken synchronously notifies our own
     // subscribe listener above, which re-reads the counter into myTokenGen — it must already
     // reflect this refresh's new generation by then.
     if (genInsideLock !== null) writeGen(genInsideLock + 1);
     setAccessToken(data.accessToken, data.expiresAtUtc);
     const ch = getChannel();
-    if (ch) ch.postMessage({ type: 'token', accessToken: data.accessToken, expiresAtUtc: data.expiresAtUtc });
+    if (ch) ch.postMessage({ type: 'token', sessionGen, accessToken: data.accessToken, expiresAtUtc: data.expiresAtUtc });
     return data.accessToken;
   }).then(
     (token) => { inFlight = null; return token; },
@@ -182,9 +195,10 @@ export function cancelPendingTokenRequests() {
   pendingRequestId = null;
 }
 
-export function broadcastLogout() {
+// sessionGen: thế hệ phiên vừa kết thúc (lấy TRƯỚC khi huỷ phiên cục bộ).
+export function broadcastLogout(sessionGen) {
   const ch = getChannel();
-  if (ch) ch.postMessage({ type: 'logout' });
+  if (ch) ch.postMessage({ type: 'logout', sessionGen });
 }
 
 export function onRemoteLogout(listener) {

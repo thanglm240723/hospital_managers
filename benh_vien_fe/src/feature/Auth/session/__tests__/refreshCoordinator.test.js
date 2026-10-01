@@ -1,6 +1,7 @@
 import { refresh } from '../../api/authClient';
 import { refreshAccessToken } from '../refreshCoordinator';
 import { getAccessToken, setAccessToken, clearAccessToken } from '../tokenStore';
+import { beginSessionTransition } from '../sessionLifecycle';
 
 jest.mock('../../api/authClient', () => ({ refresh: jest.fn() }));
 
@@ -10,6 +11,31 @@ const inFifteenMinutes = () => new Date(Date.now() + 15 * 60 * 1000).toISOString
 beforeEach(() => {
   refresh.mockReset();
   clearAccessToken();
+  beginSessionTransition();
+});
+
+it('10 lời gọi đồng thời trong cùng tab chỉ gọi mạng một lần', async () => {
+  let resolveRefresh;
+  refresh.mockReturnValue(new Promise((resolve) => { resolveRefresh = resolve; }));
+
+  const calls = Array.from({ length: 10 }, () => refreshAccessToken());
+  resolveRefresh({ accessToken: 'one', expiresAtUtc: inFifteenMinutes() });
+
+  await expect(Promise.all(calls)).resolves.toEqual(Array(10).fill('one'));
+  expect(refresh).toHaveBeenCalledTimes(1);
+});
+
+it('trình duyệt thiếu Web Locks: vẫn single-flight trong tab (rủi ro giữa các tab đã ghi trong spec)', async () => {
+  const original = navigator.locks;
+  Object.defineProperty(navigator, 'locks', { configurable: true, value: undefined });
+  try {
+    refresh.mockResolvedValueOnce({ accessToken: 'nolock', expiresAtUtc: inFifteenMinutes() });
+    const [a, b] = await Promise.all([refreshAccessToken(), refreshAccessToken()]);
+    expect([a, b]).toEqual(['nolock', 'nolock']);
+    expect(refresh).toHaveBeenCalledTimes(1);
+  } finally {
+    Object.defineProperty(navigator, 'locks', { configurable: true, value: original });
+  }
 });
 
 it('shares a single in-flight refresh between concurrent callers', async () => {
@@ -259,6 +285,7 @@ describe('broadcast token cũ sau logout', () => {
 
   beforeEach(() => {
     instances = [];
+    localStorage.clear();
     global.BroadcastChannel = RecordingChannel;
     jest.resetModules();
     modules = {
@@ -274,14 +301,17 @@ describe('broadcast token cũ sau logout', () => {
     delete global.BroadcastChannel;
   });
 
+  const gen = () => modules.lifecycle.getSessionGeneration();
+
   it('remote logout xoá token và bỏ qua token tự phát đến sau đó', () => {
     const listener = jest.fn();
     modules.lifecycle.beginSessionTransition();
+    const sessionGen = gen();
     modules.coordinator.onRemoteLogout(listener);
     modules.store.setAccessToken('mine', fresh());
 
-    deliver({ type: 'logout' });
-    deliver({ type: 'token', accessToken: 'stale', expiresAtUtc: fresh() });
+    deliver({ type: 'logout', sessionGen });
+    deliver({ type: 'token', sessionGen, accessToken: 'stale', expiresAtUtc: fresh() });
 
     expect(listener).toHaveBeenCalledTimes(1);
     expect(modules.store.getAccessToken()).toBeNull();
@@ -298,9 +328,90 @@ describe('broadcast token cũ sau logout', () => {
   it('token broadcast khi phiên đang hoạt động vẫn được nhận', () => {
     modules.lifecycle.beginSessionTransition();
 
-    deliver({ type: 'token', accessToken: 'ok', expiresAtUtc: fresh() });
+    deliver({ type: 'token', sessionGen: gen(), accessToken: 'ok', expiresAtUtc: fresh() });
 
     expect(modules.store.getAccessToken()).toBe('ok');
+  });
+
+  it('token broadcast không mang thế hệ phiên bị bỏ qua', () => {
+    modules.lifecycle.beginSessionTransition();
+
+    deliver({ type: 'token', accessToken: 'no-context', expiresAtUtc: fresh() });
+
+    expect(modules.store.getAccessToken()).toBeNull();
+  });
+
+  it('token broadcast từ phiên khác (tab khác đăng nhập tài khoản khác) bị bỏ qua', () => {
+    modules.lifecycle.beginSessionTransition();
+    const oldGen = gen();
+    modules.store.setAccessToken('mine', fresh());
+    // Tab khác đăng nhập: thế hệ phiên dùng chung tăng; tab này vẫn ở thế hệ cũ.
+    localStorage.setItem('auth:sessionGen', String(oldGen + 1));
+
+    deliver({ type: 'token', sessionGen: oldGen + 1, accessToken: 'foreign', expiresAtUtc: fresh() });
+    deliver({ type: 'token', sessionGen: oldGen, accessToken: 'stale-gen', expiresAtUtc: fresh() });
+
+    expect(modules.store.getAccessToken()).toBe('mine');
+  });
+
+  it('logout broadcast từ phiên khác không đăng xuất tab này', () => {
+    const listener = jest.fn();
+    modules.lifecycle.beginSessionTransition();
+    modules.coordinator.onRemoteLogout(listener);
+    modules.store.setAccessToken('mine', fresh());
+
+    deliver({ type: 'logout', sessionGen: gen() - 1 });
+
+    expect(listener).not.toHaveBeenCalled();
+    expect(modules.store.getAccessToken()).toBe('mine');
+  });
+
+  it('token phát sau refresh mang thế hệ phiên hiện tại', async () => {
+    modules.client.refresh.mockResolvedValue({ accessToken: 'r1', expiresAtUtc: fresh() });
+    modules.lifecycle.beginSessionTransition();
+
+    await modules.coordinator.refreshAccessToken();
+
+    const sent = instances[0].sent.find(m => m.type === 'token');
+    expect(sent.sessionGen).toBe(gen());
+    expect(sent.sessionGen).not.toBeNull();
+  });
+
+  it('need-token chỉ được trả lời cho tab cùng thế hệ phiên', () => {
+    modules.lifecycle.beginSessionTransition();
+    modules.store.setAccessToken('mine', fresh());
+
+    deliver({ type: 'need-token', requestId: 'r', sessionGen: gen() + 5 });
+    expect(instances[0].sent.some(m => m.type === 'token')).toBe(false);
+
+    deliver({ type: 'need-token', requestId: 'r', sessionGen: gen() });
+    expect(instances[0].sent.filter(m => m.type === 'token')).toEqual([
+      expect.objectContaining({ requestId: 'r', sessionGen: gen(), accessToken: 'mine' }),
+    ]);
+  });
+
+  it('refresh trả về sau khi tab khác đăng nhập tài khoản khác: không áp dụng, không phát', async () => {
+    let resolveRefresh;
+    modules.client.refresh.mockReturnValue(new Promise((r) => { resolveRefresh = r; }));
+    modules.lifecycle.beginSessionTransition();
+
+    const pending = modules.coordinator.refreshAccessToken();
+    localStorage.setItem('auth:sessionGen', String(gen() + 1));
+    resolveRefresh({ accessToken: 'other-account', expiresAtUtc: fresh() });
+
+    await expect(pending).rejects.toThrow();
+    expect(modules.store.getAccessToken()).toBeNull();
+    expect(instances[0].sent.some(m => m.type === 'token')).toBe(false);
+  });
+
+  it('tab mới chưa có token: gọi mạng đúng một lần dù bộ đếm refresh đã > 0', async () => {
+    localStorage.setItem('auth:refreshGen', '7');
+    modules.client.refresh.mockResolvedValue({ accessToken: 'cold', expiresAtUtc: fresh() });
+    modules.lifecycle.beginSessionTransition();
+
+    await expect(modules.coordinator.refreshAccessToken()).resolves.toBe('cold');
+    expect(modules.client.refresh).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem('auth:refreshGen')).toBe('8');
   });
 
   it('refresh trả về sau logout: không áp dụng token, không phát token', async () => {

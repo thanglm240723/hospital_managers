@@ -82,3 +82,47 @@ it('routes 403 password_change_required to its handler', async () => {
   await expect(createHttpClient(adapter).get('v1/users')).rejects.toBeDefined();
   expect(handlers.onPasswordChangeRequired).toHaveBeenCalledTimes(1);
 });
+
+describe('nhiều request cùng gặp 401', () => {
+  const originalApiUrl = process.env.API_URL;
+
+  afterEach(() => {
+    process.env.API_URL = originalApiUrl;
+  });
+
+  it('10 request dùng chung một promise refresh, mỗi request retry tối đa một lần và giữ nguyên headers/body/Idempotency-Key', async () => {
+    process.env.API_URL = 'http://gw.local/api/';
+    setAccessToken('old', future());
+    let resolveRefresh;
+    const shared = new Promise((resolve) => { resolveRefresh = resolve; });
+    refreshAccessToken.mockImplementation(() => shared);
+
+    const calls = [];
+    const adapter = (config) => {
+      calls.push(config);
+      const ok = config.headers.Authorization === 'Bearer new';
+      const response = { status: ok ? 200 : 401, data: { ok }, headers: {}, config };
+      return ok ? Promise.resolve(response) : Promise.reject(Object.assign(new Error('HTTP 401'), { config, response }));
+    };
+    const client = createHttpClient(adapter);
+
+    const requests = Array.from({ length: 10 }, (_, i) => client.post(`v1/items/${i}/call-next`, { n: i }, { headers: { 'Idempotency-Key': `key-${i}` } }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    setAccessToken('new', future());
+    resolveRefresh('new');
+    const responses = await Promise.all(requests);
+
+    expect(responses.every(r => r.data.ok)).toBe(true);
+    expect(calls).toHaveLength(20);
+    const replays = calls.slice(10);
+    replays.forEach((config) => {
+      const i = Number(config.url.match(/items\/(\d+)\//)[1]);
+      expect(config.url).toBe(`http://gw.local/api/v1/items/${i}/call-next`);
+      expect(config.headers['Idempotency-Key']).toBe(`key-${i}`);
+      expect(config.headers['X-CSRF-Token']).toBe('csrf-1');
+      expect(JSON.parse(config.data)).toEqual({ n: i });
+    });
+    expect(new Set(replays.map(c => c.url)).size).toBe(10);
+    expect(handlers.onSessionExpired).not.toHaveBeenCalled();
+  });
+});
