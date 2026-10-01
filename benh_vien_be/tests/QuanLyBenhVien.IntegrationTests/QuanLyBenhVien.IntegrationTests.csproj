@@ -23,7 +23,6 @@
     <Compile Remove="Admin\RolesAdminTests.cs" /> <!-- chờ slice admin-roles -->
     <Compile Remove="Admin\UserAccessManagementTests.cs" /> <!-- chờ slice admin-user-access -->
     <Compile Remove="Admin\UsersAdminTests.cs" /> <!-- chờ slice admin-users -->
-    <Compile Remove="Authorization\AuthorizationPipelineTests.cs" /> <!-- chờ slice phân-quyền/HasPermission -->
     <Compile Remove="Caching\RedisServicesTests.cs" /> <!-- chờ slice CacheInvalidator/worker (ISessionCache.SetAsync, ILoginRateLimiter cũ không còn khớp port mới) -->
     <Compile Remove="Health\HealthEndpointTests.cs" /> <!-- chờ slice health DB (DatabaseHealthCheck chưa port) -->
   </ItemGroup>

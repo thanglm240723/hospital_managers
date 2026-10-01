@@ -7,8 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using QuanLyBenhVien.Application.Features.Auth.Common;
-using QuanLyBenhVien.Application.Features.Auth.GetMe;
+using QuanLyBenhVien.Application.Common.Identity;
 using QuanLyBenhVien.IntegrationTests.Helpers;
 using QuanLyBenhVien.IntegrationTests.Infrastructure;
 using Xunit;
@@ -29,13 +28,10 @@ public sealed class GateProbeModule : ICarterModule
         }).RequireAuthorization();
 }
 
-/// Read service đọc cờ lỗi (DB sập) — gate không được cho request đi tiếp.
-public sealed class ThrowingAuthReadService : IAuthReadService
+/// Permission service lỗi (DB sập) — gate không được cho request đi tiếp.
+public sealed class ThrowingPermissionService : IPermissionService
 {
-    public Task<SessionStateDto?> GetSessionStateAsync(Guid sessionFamilyId, CancellationToken ct = default)
-        => throw new InvalidOperationException("db down");
-
-    public Task<MeDto?> GetMeAsync(Guid userId, CancellationToken ct = default)
+    public Task<UserAccessDto?> GetAsync(Guid userId, CancellationToken ct)
         => throw new InvalidOperationException("db down");
 }
 
@@ -119,7 +115,7 @@ public class PasswordChangeGateTests : IAsyncLifetime
     {
         var client = await LoginAsync(_factory, mustChangePassword: false);
         await using var broken = _factory.WithWebHostBuilder(b => b.ConfigureServices(services =>
-            services.Replace(ServiceDescriptor.Scoped<IAuthReadService, ThrowingAuthReadService>())));
+            services.Replace(ServiceDescriptor.Scoped<IPermissionService, ThrowingPermissionService>())));
         var brokenClient = client.CloneWith(broken.CreateClient(new() { BaseAddress = new Uri("https://localhost"), HandleCookies = false }));
         var before = GateProbeModule.Hits;
 
