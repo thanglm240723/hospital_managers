@@ -46,6 +46,8 @@ Danh mục quyền và role Id dùng dữ liệu thật; không đưa `role-admi
 - [ ] Chạy RolesAdmin/PermissionCatalog để thấy fail; triển khai query/endpoint mỏng, WithName có V1, API đăng ký Carter hiện có.
 - [ ] Role.RowVersion (`uint`) map `xmin` bằng IsRowVersion. Query trả version để FE gửi If-Match cho PUT. Kiểm migration/schema diff bằng EF, không tạo cột vật lý xmin thủ công; nếu tooling sinh thay đổi thì review migration mới.
 - [ ] Chạy lại tests. Giữ shape từ spec, FE sẽ map ở task 3.
+- [ ] Thêm lại test hồi quy đã bị xóa khỏi `AuthorizationPipelineTests` ở plan 04 (b032121) vì route chưa tồn tại: admin có quyền gọi được catalog `GET /api/v1/permissions` (200), người không có quyền bị 403. Viết trong `PermissionCatalogTests` khi route có thật.
+- [ ] MỞ (chưa plan nào sở hữu): `GET /api/v1/auth/sessions` chưa tồn tại. Khi route này được làm, thêm lại test hồi quy: bị chặn 403 `password_change_required` khi đang bắt buộc đổi mật khẩu (test cũ bị xóa ở b032121). Nếu không làm route này thì ghi rõ bỏ khỏi phạm vi.
 
 ## Task 2 — Command và invalidation toàn bộ thành viên
 

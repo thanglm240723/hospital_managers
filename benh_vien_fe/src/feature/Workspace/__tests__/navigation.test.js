@@ -73,6 +73,31 @@ describe('0/1/n khu vực', () => {
   });
 });
 
+describe('URL trực tiếp giữa các khu vực', () => {
+  it('đã chọn khu vực admin, mở URL của khu vực khác có quyền → chuyển khu vực, menu chỉ của khu vực đó', () => {
+    app = mountApp({ permissions: [PERMISSIONS.USERS_READ, PERMISSIONS.ROLES_READ, PERMISSIONS.VITALS_RECORD] });
+    click(cards()[0]);
+    expect(app.store.getState().workspace.selectedId).toBe('admin');
+    expect(menuLinks()).toEqual(['/admin/users', '/admin/roles']);
+
+    act(() => {
+      app.history.push('/vitals');
+    });
+    expect(app.history.location.pathname).toBe('/vitals');
+    expect(app.screen()).toBe('vitals');
+    expect(app.store.getState().workspace.selectedId).toBe('vitals');
+    expect(menuLinks()).toEqual(['/vitals']);
+  });
+
+  it('vừa đăng nhập (chưa chọn khu vực), nhiều khu vực, mở URL trực tiếp → về picker, không vào màn', () => {
+    app = mountApp({ path: '/vitals', permissions: [PERMISSIONS.USERS_READ, PERMISSIONS.VITALS_RECORD] });
+    expect(app.store.getState().workspace.selectedId).toBeNull();
+    expect(app.history.location.pathname).toBe('/start');
+    expect(cards()).toHaveLength(2);
+    expect(app.screen()).not.toBe('vitals');
+  });
+});
+
 describe('no-access, thu hồi và refresh', () => {
   it('no-access: Kiểm tra lại thành công → thoát màn cũ, vào màn đích', async () => {
     app = mountApp({ permissions: [] });
