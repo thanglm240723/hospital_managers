@@ -10,9 +10,8 @@ using Xunit;
 
 namespace QuanLyBenhVien.IntegrationTests.Auth;
 
-/// Chờ plan 03 (POST /api/v1/auth/refresh vẫn 501). File này giữ lại các test phụ thuộc hành vi
-/// refresh thật (rotate, replay-revoke-family, đua song song, hết hạn 7 ngày, CSRF/Origin của refresh).
-/// Không bật cho tới khi plan 03 hoàn tất — không chấp nhận assertion 501 làm bằng chứng.
+/// Test liên tính năng qua HTTP + PostgreSQL thật: rotate, replay thu hồi family, đua song song,
+/// hết hạn 7 ngày, CSRF/Origin của refresh, logout/logout-all so với refresh, mất response refresh.
 [Collection(IntegrationCollection.Name)]
 public class LogoutRefreshInteropTests : IAsyncLifetime
 {
@@ -60,16 +59,13 @@ public class LogoutRefreshInteropTests : IAsyncLifetime
     public async Task Refresh_ReplayedOldToken_RevokesWholeFamily()
     {
         var client = await LoggedInAsync();
-        var stolen = client.RefreshToken;
+        var stolen = client.CloneWith(_factory.CreateHttpsClient());   // bản sao nguyên cookie jar (token + CSRF cũ)
         (await client.RefreshAsync()).EnsureSuccessStatusCode();
-        var legit = client.RefreshToken;
 
-        client.RefreshToken = stolen;
-        var replay = await client.RefreshAsync();
+        var replay = await stolen.RefreshAsync();
 
         Assert.Equal(HttpStatusCode.Unauthorized, replay.StatusCode);
-        Assert.Null(client.RefreshToken);
-        client.RefreshToken = legit;
+        Assert.Null(stolen.RefreshToken);
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.RefreshAsync()).StatusCode);
     }
 
@@ -85,6 +81,51 @@ public class LogoutRefreshInteropTests : IAsyncLifetime
         Assert.Single(responses, r => r.StatusCode == HttpStatusCode.Unauthorized);
         var winner = responses[0].StatusCode == HttpStatusCode.OK ? first : second;
         Assert.Equal(HttpStatusCode.Unauthorized, (await winner.RefreshAsync()).StatusCode);
+    }
+
+    [Fact]
+    public async Task Logout_ThenRefresh_Returns401()
+    {
+        var client = await LoggedInAsync();
+        var copy = client.CloneWith(_factory.CreateHttpsClient());   // kẻ giữ bản sao cookie cũ
+
+        Assert.Equal(HttpStatusCode.NoContent, (await client.SendAsync(HttpMethod.Post, "/api/v1/auth/logout", bearer: false)).StatusCode);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await copy.RefreshAsync()).StatusCode);
+    }
+
+    [Fact]
+    public async Task LogoutAll_EveryOldFamilyRefresh_Returns401()
+    {
+        var email = TestData.NewEmail();
+        await TestData.CreateUserAsync(_factory, email);
+        var clients = new List<AuthTestClient>();
+        for (var i = 0; i < 3; i++)
+        {
+            var c = new AuthTestClient(_factory.CreateHttpsClient());
+            (await c.LoginAsync(email, TestData.DefaultPassword)).EnsureSuccessStatusCode();
+            clients.Add(c);
+        }
+        var copies = clients.Select(c => c.CloneWith(_factory.CreateHttpsClient())).ToList();
+
+        Assert.Equal(HttpStatusCode.NoContent, (await clients[0].SendAsync(HttpMethod.Post, "/api/v1/auth/logout-all")).StatusCode);
+
+        foreach (var copy in copies)
+            Assert.Equal(HttpStatusCode.Unauthorized, (await copy.RefreshAsync()).StatusCode);
+    }
+
+    /// UX đã chốt: mất response refresh thì FE không tự retry token cũ; nếu vẫn trình lại token cũ thì strict reuse
+    /// thu hồi family và người dùng phải đăng nhập lại (cả token mới mà server đã cấp cũng chết).
+    [Fact]
+    public async Task LostRefreshResponse_ResubmittingOldToken_RevokesFamily_RequiresRelogin()
+    {
+        var client = await LoggedInAsync();
+        var browser = client.CloneWith(_factory.CreateHttpsClient());   // trạng thái cookie của trình duyệt (không nhận response)
+        var serverSide = await client.RefreshAsync();   // server đã rotate, response bị mất
+        Assert.Equal(HttpStatusCode.OK, serverSide.StatusCode);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await browser.RefreshAsync()).StatusCode);   // trình lại token cũ -> reuse
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.RefreshAsync()).StatusCode);   // token mới đã cấp cũng chết
     }
 
     [Fact]

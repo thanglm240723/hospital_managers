@@ -20,8 +20,6 @@
   <ItemGroup>
     <!-- Q2: test của slice chưa chuyển sang khung mới (refresh, logout, change-password, admin users/roles,
          phân quyền/PermissionService, CacheInvalidator/worker, health DB) — loại tạm để solution build, không xóa. -->
-    <Compile Remove="Auth\LogoutRefreshInteropTests.cs" /> <!-- chờ plan 03 (refresh vẫn 501) -->
-    <Compile Remove="Auth\PasswordChangeRefreshTests.cs" /> <!-- chờ plan 03 (refresh/logout còn 501) -->
     <Compile Remove="Admin\RolesAdminTests.cs" /> <!-- chờ slice admin-roles -->
     <Compile Remove="Admin\UserAccessManagementTests.cs" /> <!-- chờ slice admin-user-access -->
     <Compile Remove="Admin\UsersAdminTests.cs" /> <!-- chờ slice admin-users -->

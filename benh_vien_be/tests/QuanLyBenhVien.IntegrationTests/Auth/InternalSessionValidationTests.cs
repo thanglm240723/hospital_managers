@@ -74,7 +74,7 @@ public class InternalSessionValidationTests : IAsyncLifetime
         Assert.False(body.GetProperty("valid").GetBoolean());
     }
 
-    [Fact(Skip = "chờ slice logout")]
+    [Fact]
     public async Task LoggedOutSession_IsInvalidAndNotRecached()
     {
         var (client, fid, sv) = await LoggedInAsync();

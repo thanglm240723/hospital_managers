@@ -121,7 +121,7 @@ public class MeAndSessionsTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, (await other.RefreshAsync()).StatusCode);
     }
 
-    [Fact(Skip = "chờ slice refresh-logout")]
+    [Fact]
     public async Task LogoutAll_KillsEverySession()
     {
         var email = TestData.NewEmail();

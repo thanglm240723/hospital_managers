@@ -61,6 +61,11 @@ dotnet ef migrations script <MigrationTruoc> <TenMigration> --project src/QuanLy
 
 | Ngày | Bước | Kết quả | Ghi chú |
 |---|---|---|---|
+| 2026-10-01 | build + unit-tests | PASS — 158/158 | `-Mode Full` (plan 03 refresh, task 4) |
+| 2026-10-01 | integration-tests | PASS — 125 passed, 8 skipped, 133 total | `-Mode Full`, Docker/Testcontainers; đã bật `LogoutRefreshInteropTests`, `PasswordChangeRefreshTests` (plan 03, task 4) |
+| 2026-10-01 | frontend-tests + lint | PASS — 101/101, 22 suite | `-Mode Frontend` (plan 03, task 4) |
+| 2026-10-01 | frontend build | PASS — exit 0 | `npm run build` trong `benh_vien_fe` (plan 03, task 4) |
+| 2026-10-01 | kiểm tay trình duyệt (F5, nhiều tab, chờ refresh, logout nhiều tab, DevTools) | NOT_RUN | agent không điều khiển được trình duyệt thật; người dùng tự chạy checklist trong báo cáo task 4 |
 | 2026-09-30 | build + unit-tests | PASS — 157/157 | `-Mode Full` (plan 02 logout, task 4) |
 | 2026-09-30 | integration-tests | PASS — 94 passed, 11 skipped, 105 total | `-Mode Full`, Docker/Testcontainers (plan 02 logout, task 4) |
 | 2026-09-30 | frontend-tests + lint | PASS — 83/83, 20 suite | `-Mode Frontend` (plan 02 logout, task 4) |

@@ -5,9 +5,7 @@ using Xunit;
 
 namespace QuanLyBenhVien.IntegrationTests.Auth;
 
-/// Assertion đổi mật khẩu phụ thuộc refresh — chờ plan 03 (refresh/logout hiện trả 501).
-/// File đang Compile Remove trong csproj; bật lại khi plan 03 xong. Phần độc lập với refresh nằm ở
-/// ChangePasswordFlowTests và Gateway/PasswordChangeSessionTests.
+/// Sau đổi mật khẩu: family hiện tại refresh được, family khác bị thu hồi (refresh 401).
 [Collection(IntegrationCollection.Name)]
 public class PasswordChangeRefreshTests : IAsyncLifetime
 {
