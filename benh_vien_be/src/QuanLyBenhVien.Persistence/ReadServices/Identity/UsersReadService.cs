@@ -28,9 +28,13 @@ internal sealed class UsersReadService(AppDbContext db) : IUsersReadService
         };
 
         var total = await users.CountAsync(ct);
+        var offset = (long)(query.PageNumber - 1) * query.PageSize;
+        if (offset >= total)
+            return PagedResult<UserSummaryDto>.Create([], query.PageNumber, query.PageSize, total);
+
         var rows = await users
             .OrderBy(u => u.FullName).ThenBy(u => u.Id)
-            .Skip((query.PageNumber - 1) * query.PageSize).Take(query.PageSize)
+            .Skip((int)offset).Take(query.PageSize)
             .Select(u => new
             {
                 u.Id, u.Email, u.FullName, u.IsActive, u.MustChangePassword, u.RowVersion,

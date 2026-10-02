@@ -86,6 +86,17 @@ public class UsersReadTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task List_HugePageNumber_ReturnsEmptyItemsNot500()
+    {
+        var response = await _admin.GetAsync("/api/v1/users?pageNumber=2147483647&pageSize=100");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var page = await JsonAsync(response);
+        Assert.Equal(0, page.GetProperty("items").GetArrayLength());
+        Assert.True(page.GetProperty("totalCount").GetInt32() >= 1);
+    }
+
+    [Fact]
     public async Task List_FilterByRoleIdAndStatus()
     {
         var tag = Guid.NewGuid().ToString("N")[..8];

@@ -1,7 +1,6 @@
 using QuanLyBenhVien.Domain.Common.Auditing;
 using QuanLyBenhVien.Domain.Identity;
 using QuanLyBenhVien.Persistence;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
