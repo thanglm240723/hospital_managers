@@ -97,7 +97,21 @@ public class LastAdminConcurrencyTests : IAsyncLifetime
             _admin1.SendAsync(HttpMethod.Post, $"/api/v1/users/{admin2Id}/deactivate"),
             RemoveAllRolesAsync(admin2, _admin1Id, v1));
 
-        await AssertOneWinsOtherLastAdmin(responses);
+        // Hai actor đối xứng: nếu kẻ thắng commit trước khi request của kẻ thua qua auth, kẻ thua mất phiên/quyền
+        // (401/403) thay vì nhận 409 last_admin — bất biến vẫn giữ.
+        var diagnostics = string.Join(", ", await Task.WhenAll(responses.Select(async r =>
+            $"{(int)r.StatusCode} {await r.Content.ReadAsStringAsync()}")));
+        Assert.True(responses.Count(r => r.StatusCode == HttpStatusCode.OK) == 1, diagnostics);
+        var loser = responses.Single(r => r.StatusCode != HttpStatusCode.OK);
+        if (loser.StatusCode == HttpStatusCode.Conflict)
+        {
+            Assert.True((await loser.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString() == "last_admin", diagnostics);
+        }
+        else
+        {
+            Assert.True(loser.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden, diagnostics);
+        }
+
         Assert.Equal(1, await ActiveAdminCountAsync(_admin1Id, admin2Id));
     }
 }
