@@ -7,5 +7,8 @@ public static class AuditActions
     public const string Logout = "auth.logout";
     public const string LogoutAll = "auth.logout_all";
     public const string RefreshReuse = "auth.refresh.reuse";
+    public const string RoleCreate = "roles.create";
+    public const string RoleRename = "roles.rename";
+    public const string RoleSetPermissions = "roles.set_permissions";
     public const string AuthorizationDenied = "auth.authorization.denied";
 }

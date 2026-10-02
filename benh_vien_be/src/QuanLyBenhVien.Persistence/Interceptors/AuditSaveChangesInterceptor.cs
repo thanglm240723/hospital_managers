@@ -51,14 +51,14 @@ internal sealed class AuditSaveChangesInterceptor : SaveChangesInterceptor
                 _ => AuditAction.Deleted
             };
 
-            foreach (var p in entry.Properties.Where(p => !ExcludedProperties.Contains(p.Metadata.Name)))
+            foreach (var p in entry.Properties.Where(p => !ExcludedProperties.Contains(p.Metadata.Name) && !p.Metadata.IsConcurrencyToken))
             {
                 switch (action)
                 {
                     case AuditAction.Created:
                         changes[p.Metadata.Name] = new { New = p.CurrentValue };
                         break;
-                    case AuditAction.Updated when p.IsModified:
+                    case AuditAction.Updated when p.IsModified && !Equals(p.OriginalValue, p.CurrentValue):
                         changes[p.Metadata.Name] = new { Old = p.OriginalValue, New = p.CurrentValue };
                         break;
                     case AuditAction.Deleted:

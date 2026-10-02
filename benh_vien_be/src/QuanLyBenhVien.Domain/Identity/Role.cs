@@ -37,15 +37,18 @@ public sealed class Role : AggregateRoot<Guid>, IAuditable
         Name = name.Trim();
     }
 
-    public void SetPermissions(IEnumerable<string> permissionCodes)
+    /// Trả true nếu tập quyền thực sự thay đổi.
+    public bool SetPermissions(IEnumerable<string> permissionCodes)
     {
         var target = permissionCodes.Distinct(StringComparer.Ordinal).ToList();
         foreach (var code in target)
             if (!Permissions.IsDefined(code))
                 throw new ArgumentException($"Unknown permission '{code}'.", nameof(permissionCodes));
 
-        _grantedPermissions.RemoveAll(p => !target.Contains(p.PermissionCode));
-        foreach (var code in target.Where(c => _grantedPermissions.All(p => p.PermissionCode != c)))
+        var removed = _grantedPermissions.RemoveAll(p => !target.Contains(p.PermissionCode));
+        var toAdd = target.Where(c => _grantedPermissions.All(p => p.PermissionCode != c)).ToList();
+        foreach (var code in toAdd)
             _grantedPermissions.Add(new RolePermission(Id, code));
+        return removed > 0 || toAdd.Count > 0;
     }
 }

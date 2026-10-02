@@ -21,6 +21,25 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public async Task<IUnitOfWorkTransaction> BeginTransactionAsync(CancellationToken ct = default)
         => new AppDbTransaction(await Database.BeginTransactionAsync(ct));
 
+    /// Chỉ dịch những unique constraint mà Application cần phân biệt (mỗi cái có use case xử lý riêng);
+    /// các vi phạm khác giữ nguyên DbUpdateException.
+    private static class TranslatedUniqueConstraints
+    {
+        public const string Roles = "IX_Roles_Code";
+    }
+
+    public override async Task<int> SaveChangesAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            return await base.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation, ConstraintName: TranslatedUniqueConstraints.Roles } pg)
+        {
+            throw new QuanLyBenhVien.Domain.Exceptions.UniqueConstraintViolationException(pg.ConstraintName, ex);
+        }
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

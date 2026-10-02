@@ -20,7 +20,6 @@
   <ItemGroup>
     <!-- Q2: test của slice chưa chuyển sang khung mới (refresh, logout, change-password, admin users/roles,
          phân quyền/PermissionService, CacheInvalidator/worker, health DB) — loại tạm để solution build, không xóa. -->
-    <Compile Remove="Admin\RolesCommandTests.cs" /> <!-- chờ plan 05 Task 2 (command vai trò) -->
     <Compile Remove="Admin\UserAccessManagementTests.cs" /> <!-- chờ slice admin-user-access -->
     <Compile Remove="Admin\UsersAdminTests.cs" /> <!-- chờ slice admin-users -->
     <Compile Remove="Caching\RedisServicesTests.cs" /> <!-- chờ slice CacheInvalidator/worker (ISessionCache.SetAsync, ILoginRateLimiter cũ không còn khớp port mới) -->
