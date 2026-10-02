@@ -220,4 +220,26 @@ public class RolesCommandTests : IAsyncLifetime
         // Lần sửa chỉ đổi bảng con: Name bị đánh dấu modified nhưng không đổi giá trị ⇒ không tạo diff Role rỗng.
         Assert.Single(changes);
     }
+
+    /// SetRolePermissions phải khoá admin-safety (chung với SetUserRoles) rồi mới đọc holder, nếu không gán role
+    /// chạy song song có thể lọt khỏi vòng invalidate và member giữ quyền đã gỡ vô thời hạn.
+    [Fact(Skip = "Chờ SetUserRoles plan 06 — phải lấy AcquireAdminSafetyLockAsync trước khi ghi UserRoles")]
+    public async Task SetRolePermissions_ConcurrentWithRoleAssignment_NeverLeavesStalePermission()
+    {
+        for (var i = 0; i < 8; i++)
+        {
+            var (roleId, version) = await NewRoleAsync($"catalog-viewer-{i}", Permissions.Catalog.Read);
+            var email = TestData.NewEmail();
+            var memberId = await TestData.CreateUserAsync(_factory, email);
+            var member = new AuthTestClient(_factory.CreateHttpsClient());
+            (await member.LoginAsync(email, TestData.DefaultPassword)).EnsureSuccessStatusCode();
+
+            var responses = await Task.WhenAll(
+                _admin.SendAsync(HttpMethod.Put, $"/api/v1/users/{memberId}/roles", new { roleIds = new[] { roleId } }),
+                PutAsync($"/api/v1/roles/{roleId}/permissions", new { permissionCodes = Array.Empty<string>() }, version));
+
+            Assert.All(responses, r => Assert.True(r.IsSuccessStatusCode));
+            Assert.Equal(HttpStatusCode.Forbidden, (await member.GetAsync("/api/v1/permissions")).StatusCode);
+        }
+    }
 }
