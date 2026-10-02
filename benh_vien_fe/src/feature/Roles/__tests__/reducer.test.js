@@ -26,3 +26,17 @@ describe('rolesReducer', () => {
     expect(state.selectedId).toBe('r1');
   });
 });
+
+describe('rolesReducer — selectedId khi upsert', () => {
+  const base = { items: [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }], loading: false, error: null, selectedId: 'b' };
+
+  it('cập nhật role đã có không đổi selectedId', () => {
+    const state = rolesReducer(base, { type: ROLES_UPSERT, payload: { id: 'a', name: 'A2' } });
+    expect(state.selectedId).toBe('b');
+  });
+
+  it('tạo mới thì chọn role vừa tạo', () => {
+    const state = rolesReducer(base, { type: ROLES_UPSERT, payload: { id: 'c', name: 'C' } });
+    expect(state.selectedId).toBe('c');
+  });
+});

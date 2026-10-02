@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { problemTitle } from 'feature/Auth/problem';
 import { groupPermissions } from '../permissionCatalog';
 
+const snapshot = role => ({ name: role.name, permissionCodes: role.permissionCodes, rowVersion: role.rowVersion });
 const sameSet = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
 
 export const describeError = (error) => {
@@ -19,7 +20,7 @@ class RoleDetail extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      name: props.role.name, permissionCodes: props.role.permissionCodes, saving: false, error: null,
+      name: props.role.name, permissionCodes: props.role.permissionCodes, saving: false, error: null, base: snapshot(props.role),
     };
     this.lastDirty = false;
     this.unmounted = false;
@@ -44,8 +45,15 @@ class RoleDetail extends React.Component {
 
   resetFrom = (role) => {
     this.setState({
-      name: role.name, permissionCodes: role.permissionCodes, saving: false, error: null,
+      name: role.name, permissionCodes: role.permissionCodes, saving: false, error: null, base: snapshot(role),
     });
+  };
+
+  // Server đã đổi so với bản lúc bắt đầu chỉnh sửa (ví dụ sau 412 + nạp lại).
+  isStale = () => {
+    const { role } = this.props;
+    const { base } = this.state;
+    return role.rowVersion !== base.rowVersion;
   };
 
   isEditable = () => {
@@ -54,9 +62,8 @@ class RoleDetail extends React.Component {
   };
 
   isDirty = () => {
-    const { role } = this.props;
-    const { name, permissionCodes } = this.state;
-    return this.isEditable() && (name.trim() !== role.name || !sameSet(permissionCodes, role.permissionCodes));
+    const { name, permissionCodes, base } = this.state;
+    return this.isEditable() && (name.trim() !== base.name || !sameSet(permissionCodes, base.permissionCodes));
   };
 
   togglePermission = (code) => {
@@ -69,20 +76,29 @@ class RoleDetail extends React.Component {
 
   handleSave = async () => {
     const { role, onRename, onSavePermissions } = this.props;
-    const { name, permissionCodes } = this.state;
+    const { name, permissionCodes, base } = this.state;
+    const newName = name.trim();
     this.setState({ saving: true, error: null });
+    let renamedOk = false;
     try {
       let version = role.rowVersion;
-      if (name.trim() !== role.name) {
-        const renamed = await onRename(role.id, name.trim(), version);
-        version = renamed.rowVersion;
+      let last = null;
+      if (newName !== base.name) {
+        last = await onRename(role.id, newName, version);
+        if (last && last.rowVersion !== undefined) version = last.rowVersion;
+        renamedOk = true;
+        if (!this.unmounted) this.setState(s => ({ base: { ...s.base, name: newName, rowVersion: version } }));
       }
-      if (!sameSet(permissionCodes, role.permissionCodes)) {
-        await onSavePermissions(role.id, permissionCodes, version);
+      if (!sameSet(permissionCodes, base.permissionCodes)) {
+        last = await onSavePermissions(role.id, permissionCodes, version);
+        if (last && last.rowVersion !== undefined) version = last.rowVersion;
       }
+      if (!this.unmounted) this.setState({ base: { name: newName, permissionCodes, rowVersion: version } });
     } catch (error) {
       // Giữ nguyên chỉnh sửa để người dùng đối chiếu; không ghi đè bằng dữ liệu server.
-      if (!this.unmounted) this.setState({ error: describeError(error) });
+      const described = describeError(error);
+      if (renamedOk) described.message = `Tên đã được lưu, quyền chưa được lưu. ${described.message}`;
+      if (!this.unmounted) this.setState({ error: described });
     } finally {
       if (!this.unmounted) this.setState({ saving: false });
     }
@@ -95,6 +111,9 @@ class RoleDetail extends React.Component {
     const {
       name, permissionCodes, saving, error,
     } = this.state;
+    const stale = this.isStale();
+    const serverNotMine = permissionCodes.filter(c => role.permissionCodes.indexOf(c) === -1);
+    const mineNotServer = role.permissionCodes.filter(c => permissionCodes.indexOf(c) === -1);
     const editable = this.isEditable();
     const dirty = this.isDirty();
     const groups = groupPermissions(permissions);
@@ -161,6 +180,16 @@ class RoleDetail extends React.Component {
           </section>
         )}
 
+        {stale && dirty && (
+          <div className="c-form__error" role="alert">
+            <p>Dữ liệu trên máy chủ đã thay đổi so với bản bạn đang sửa.</p>
+            {role.name !== name.trim() && <p>{`Tên: máy chủ "${role.name}" / bản của bạn "${name.trim()}"`}</p>}
+            {serverNotMine.length > 0 && <p>{`Bản của bạn có thêm so với máy chủ: ${serverNotMine.join(', ')}`}</p>}
+            {mineNotServer.length > 0 && <p>{`Máy chủ có thêm so với bản của bạn: ${mineNotServer.join(', ')}`}</p>}
+            <button type="button" className="c-login__secondary" onClick={() => this.resetFrom(role)}>Bỏ chỉnh sửa của tôi</button>
+          </div>
+        )}
+
         {error && (
           <div className="c-form__error" role="alert">
             {error.message}
@@ -172,7 +201,7 @@ class RoleDetail extends React.Component {
 
         <div className="c-confirm-dialog__actions" style={{ justifyContent: 'flex-start', marginTop: 16 }}>
           {editable && (
-            <button type="button" className="c-login__submit" onClick={this.handleSave} disabled={saving || !dirty || !name.trim()}>
+            <button type="button" className="c-login__submit" onClick={this.handleSave} disabled={saving || !dirty || !name.trim() || stale}>
               {saving ? 'Đang lưu…' : 'Lưu thay đổi'}
             </button>
           )}

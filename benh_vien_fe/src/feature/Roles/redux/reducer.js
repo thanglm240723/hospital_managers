@@ -29,7 +29,7 @@ export default function rolesReducer(state = initialState, action) {
       return {
         ...state,
         items: exists ? state.items.map(r => (r.id === action.payload.id ? action.payload : r)) : [...state.items, action.payload],
-        selectedId: action.payload.id,
+        selectedId: exists ? state.selectedId : action.payload.id,
       };
     }
     default:

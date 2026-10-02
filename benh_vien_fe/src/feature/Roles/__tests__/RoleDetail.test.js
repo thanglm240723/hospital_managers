@@ -118,3 +118,59 @@ describe('CreateRoleDialog', () => {
     expect(container.textContent).toContain('role_code_taken');
   });
 });
+
+describe('RoleDetail — lưu nhiều bước và nạp lại', () => {
+  const err = (status, code) => {
+    const e = new Error('x');
+    e.response = { status, data: { code, title: 'Lỗi' } };
+    return e;
+  };
+  const nameInput = () => container.querySelector('#role-name');
+
+  it('rename trước, permissions dùng rowVersion trả về từ rename', async () => {
+    const calls = [];
+    const p = props({
+      onRename: jest.fn(async () => { calls.push('rename'); return { rowVersion: 4 }; }),
+      onSavePermissions: jest.fn(async () => { calls.push('perm'); return {}; }),
+    });
+    render(<RoleDetail {...p} />);
+    act(() => setInput(nameInput(), 'Tên mới'));
+    click(perm('b.read'));
+    click(saveButton());
+    await flush();
+    expect(calls).toEqual(['rename', 'perm']);
+    expect(p.onRename).toHaveBeenCalledWith('r1', 'Tên mới', 3);
+    expect(p.onSavePermissions).toHaveBeenCalledWith('r1', ['a.read', 'b.read'], 4);
+  });
+
+  it('rename OK nhưng permissions lỗi: báo tên đã lưu, quyền chưa lưu', async () => {
+    const p = props({
+      onRename: jest.fn().mockResolvedValue({ rowVersion: 4 }),
+      onSavePermissions: jest.fn().mockRejectedValue(err(409, 'admin_core_permissions_required')),
+    });
+    render(<RoleDetail {...p} />);
+    act(() => setInput(nameInput(), 'Tên mới'));
+    click(perm('b.read'));
+    click(saveButton());
+    await flush();
+    expect(container.textContent).toContain('Tên đã được lưu, quyền chưa được lưu');
+    expect(container.textContent).toContain('admin_core_permissions_required');
+  });
+
+  it('sau khi nạp lại bản server khác: cảnh báo, chặn lưu, liệt kê khác biệt, cho bỏ chỉnh sửa', async () => {
+    const p = props({ onSavePermissions: jest.fn().mockRejectedValue(err(412, 'role_version_conflict')) });
+    render(<RoleDetail {...p} />);
+    click(perm('b.read'));
+    click(saveButton());
+    await flush();
+    act(() => { ReactDOM.render(<RoleDetail {...p} role={{ ...role, rowVersion: 5, permissionCodes: ['a.read', 'c.read'] }} />, container); });
+    expect(container.textContent).toContain('Dữ liệu trên máy chủ đã thay đổi');
+    expect(container.textContent).toContain('c.read');
+    expect(container.textContent).toContain('b.read');
+    expect(saveButton().disabled).toBe(true);
+    const discard = Array.from(container.querySelectorAll('button')).find(b => b.textContent === 'Bỏ chỉnh sửa của tôi');
+    click(discard);
+    expect(container.textContent).not.toContain('Dữ liệu trên máy chủ đã thay đổi');
+    expect(perm('b.read').checked).toBe(false);
+  });
+});
