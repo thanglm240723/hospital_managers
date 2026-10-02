@@ -1,6 +1,5 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { SYSTEM_ROLES } from 'feature/Roles/permissionCatalog';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Tất cả trạng thái' },
@@ -9,7 +8,9 @@ const STATUS_OPTIONS = [
   { value: 'locked', label: 'Đã khóa' },
 ];
 
-const UserFilters = ({ value, onChange, onCreate, canCreate }) => (
+const UserFilters = ({
+  value, onChange, onCreate, canCreate, roleOptions, roleOptionsReason,
+}) => (
   <div className="c-toolbar">
     <input
       className="c-toolbar__search"
@@ -26,8 +27,9 @@ const UserFilters = ({ value, onChange, onCreate, canCreate }) => (
       aria-label="Lọc theo vai trò"
     >
       <option value="">Tất cả vai trò</option>
-      {SYSTEM_ROLES.map(role => <option key={role.id} value={role.id}>{role.name}</option>)}
+      {roleOptions.map(role => <option key={role.id} value={role.id}>{role.name}</option>)}
     </select>
+    {roleOptionsReason && <span className="c-toolbar__hint">{`Không lọc được theo vai trò: ${roleOptionsReason}`}</span>}
     <select
       className="c-toolbar__select"
       value={value.status}
@@ -47,6 +49,10 @@ UserFilters.propTypes = {
   onChange: PropTypes.func.isRequired,
   onCreate: PropTypes.func.isRequired,
   canCreate: PropTypes.bool.isRequired,
+  roleOptions: PropTypes.arrayOf(PropTypes.object),
+  roleOptionsReason: PropTypes.string,
 };
+
+UserFilters.defaultProps = { roleOptions: [], roleOptionsReason: null };
 
 export default UserFilters;

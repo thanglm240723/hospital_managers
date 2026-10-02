@@ -82,9 +82,9 @@ describe('route registry', () => {
     expect(resolveStartTarget('admin', { pathname: '/admin/users' }, [PERMISSIONS.ROLES_READ], ON)).toBe('/admin/roles');
   });
 
-  it('mốc 05: chỉ admin.roles đã phát hành, các màn còn lại chưa (không giả quyền/mock)', () => {
+  it('mốc 06: chỉ admin.users và admin.roles đã phát hành, các màn còn lại chưa (không giả quyền/mock)', () => {
     const on = Object.keys(FEATURE_AVAILABILITY).filter(k => FEATURE_AVAILABILITY[k]);
-    expect(on).toEqual(['admin.roles']);
+    expect(on).toEqual(['admin.users', 'admin.roles']);
   });
 });
 
