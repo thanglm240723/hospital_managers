@@ -27,24 +27,15 @@ public class EntityConfigurationTests
     }
 
     [Fact]
-    public async Task UserConfiguration_EnforcesUniqueEmailIndex()
+    public void UserConfiguration_DeclaresUniqueEmailIndexAndXminRowVersion()
     {
-        // The EF Core InMemory provider does not enforce unique indexes (by design —
-        // see dotnet/efcore#3850), so a real constraint check needs a provider that does.
-        // SQLite's in-memory mode enforces the unique index configured in UserConfiguration.
-        using var connection = new SqliteConnection("DataSource=:memory:");
-        connection.Open();
-        using var context = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite(connection)
-            .Options);
-        context.Database.EnsureCreated();
+        // Không dùng SQLite: cột hệ thống xmin của PostgreSQL không có ở đó. Ràng buộc thật được chứng minh ở integration test.
+        using var context = CreateContext();
+        var entityType = context.Model.FindEntityType(typeof(User))!;
 
-        context.Users.Add(User.Create("A", "dup@example.com", "hash1", null));
-        await context.SaveChangesAsync();
-
-        context.Users.Add(User.Create("B", "dup@example.com", "hash2", null));
-
-        await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
+        var index = Assert.Single(entityType.GetIndexes(), i => i.Properties.Single().Name == nameof(User.Email));
+        Assert.True(index.IsUnique);
+        Assert.True(entityType.FindProperty(nameof(User.RowVersion))!.IsConcurrencyToken);
     }
 
     [Fact]

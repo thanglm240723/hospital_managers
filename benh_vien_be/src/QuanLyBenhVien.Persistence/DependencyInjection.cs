@@ -1,3 +1,4 @@
+using QuanLyBenhVien.Application.Features.Users.Common;
 using QuanLyBenhVien.Application.Features.Roles.Common;
 using QuanLyBenhVien.Application.Features.Permissions.Common;
 using QuanLyBenhVien.Application.Common.Identity;
@@ -39,6 +40,7 @@ public static class DependencyInjection
         services.AddScoped<IAuthReadService, AuthReadService>();
         services.AddScoped<IUserAccessReadService, UserAccessReadService>();
         services.AddScoped<IRolesReadService, RolesReadService>();
+        services.AddScoped<IUsersReadService, UsersReadService>();
         services.AddScoped<IPermissionsReadService, PermissionsReadService>();
         services.AddScoped<IRefreshSessionLookup, RefreshSessionLookup>();
         services.AddScoped<ICacheInvalidationStore, CacheInvalidationStore>();

@@ -15,6 +15,7 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.AvatarUrl).HasMaxLength(500);
         builder.HasMany(u => u.RoleAssignments).WithOne().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.Cascade);
         builder.HasMany(u => u.PermissionGrants).WithOne().HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
+        builder.Property(u => u.RowVersion).IsRowVersion();
         builder.Ignore(u => u.DomainEvents);
     }
 }

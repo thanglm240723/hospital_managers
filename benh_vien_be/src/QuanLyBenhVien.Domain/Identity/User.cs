@@ -21,6 +21,7 @@ public sealed class User : AggregateRoot<Guid>, IAuditable
     public DateTimeOffset? LastLoginAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? UpdatedAt { get; private set; }
+    public uint RowVersion { get; private set; }
     public IReadOnlyCollection<UserRole> RoleAssignments => _roleAssignments.AsReadOnly();
     public IReadOnlyCollection<UserPermission> PermissionGrants => _permissionGrants.AsReadOnly();
 
