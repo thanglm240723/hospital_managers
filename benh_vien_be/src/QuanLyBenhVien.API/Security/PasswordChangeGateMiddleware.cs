@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using QuanLyBenhVien.Application.Common.Identity;
-using QuanLyBenhVien.Presentation.Auth;
+using QuanLyBenhVien.Presentation.Security;
 using QuanLyBenhVien.Presentation.Http;
 
 namespace QuanLyBenhVien.API.Security;

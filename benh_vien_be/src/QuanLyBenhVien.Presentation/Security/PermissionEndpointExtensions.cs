@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 
-namespace QuanLyBenhVien.Presentation.Auth;
+namespace QuanLyBenhVien.Presentation.Security;
 
 public static class PermissionPolicy
 {

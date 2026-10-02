@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 using QuanLyBenhVien.API.Security;
 using QuanLyBenhVien.Application.Common.Identity;
 using QuanLyBenhVien.Domain.Identity;
-using QuanLyBenhVien.Presentation.Auth;
+using QuanLyBenhVien.Presentation.Security;
 using Xunit;
 
 namespace QuanLyBenhVien.UnitTests.API.Security;

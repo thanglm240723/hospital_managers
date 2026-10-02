@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Http;
 using QuanLyBenhVien.Application.Features.Auth.Common;
 using QuanLyBenhVien.Presentation.Http;
 
-namespace QuanLyBenhVien.Presentation.Auth;
+namespace QuanLyBenhVien.Presentation.Security;
 
 /// CSRF cho route đổi trạng thái phiên (spec V2 §5.3): Origin thuộc allowlist và X-CSRF-Token = HMAC(family).
 /// Family lấy theo `CsrfProtectionMetadata.Source`: `Bearer` từ claim `fid` (route cần đăng nhập) hoặc

@@ -1,4 +1,4 @@
-namespace QuanLyBenhVien.Presentation.Auth;
+namespace QuanLyBenhVien.Presentation.Security;
 
 /// Nguồn family để đối chiếu X-CSRF-Token: `Bearer` đọc claim `fid` của access token (route cần đăng nhập),
 /// `RefreshCookie` đọc cookie `__Host-rt` rồi định vị family qua `IRefreshSessionLookup` (route công khai như logout).

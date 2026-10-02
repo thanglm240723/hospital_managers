@@ -13,7 +13,7 @@ using QuanLyBenhVien.Domain.Common.Auditing;
 using QuanLyBenhVien.Domain.Identity;
 using QuanLyBenhVien.IntegrationTests.Helpers;
 using QuanLyBenhVien.IntegrationTests.Infrastructure;
-using QuanLyBenhVien.Presentation.Auth;
+using QuanLyBenhVien.Presentation.Security;
 using Xunit;
 
 namespace QuanLyBenhVien.IntegrationTests.Authorization;

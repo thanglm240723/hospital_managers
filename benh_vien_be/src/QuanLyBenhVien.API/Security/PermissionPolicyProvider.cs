@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
-using QuanLyBenhVien.Presentation.Auth;
+using QuanLyBenhVien.Presentation.Security;
 
 namespace QuanLyBenhVien.API.Security;
 

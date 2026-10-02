@@ -1,7 +1,7 @@
 using Carter;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using QuanLyBenhVien.Presentation.Auth;
+using QuanLyBenhVien.Presentation.Security;
 using QuanLyBenhVien.Presentation.Http;
 
 namespace QuanLyBenhVien.Presentation;

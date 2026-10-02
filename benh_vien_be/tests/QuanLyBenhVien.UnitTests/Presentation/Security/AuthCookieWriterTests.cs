@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Time.Testing;
-using QuanLyBenhVien.Presentation.Auth;
+using QuanLyBenhVien.Presentation.Security;
 using Xunit;
 
-namespace QuanLyBenhVien.UnitTests.Presentation.Auth;
+namespace QuanLyBenhVien.UnitTests.Presentation.Security;
 
 public class AuthCookieWriterTests
 {

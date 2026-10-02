@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using QuanLyBenhVien.Application.Common.Auditing;
 using QuanLyBenhVien.Domain.Common;
 using QuanLyBenhVien.Domain.Common.Auditing;
-using QuanLyBenhVien.Presentation.Auth;
+using QuanLyBenhVien.Presentation.Security;
 using QuanLyBenhVien.Presentation.Http;
 
 namespace QuanLyBenhVien.API.Security;
