@@ -11,7 +11,7 @@ using QuanLyBenhVien.Application.Features.Auth.Login;
 using QuanLyBenhVien.Application.Features.Auth.Logout;
 using QuanLyBenhVien.Application.Features.Auth.LogoutAll;
 using QuanLyBenhVien.Application.Features.Auth.RefreshSession;
-using QuanLyBenhVien.Presentation.Auth;
+using QuanLyBenhVien.Presentation.Security;
 using QuanLyBenhVien.Presentation.Http;
 
 namespace QuanLyBenhVien.Presentation.Endpoints.V1.Auth;

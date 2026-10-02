@@ -1,14 +1,48 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Carter;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using QuanLyBenhVien.Application.Common.Auditing;
+using QuanLyBenhVien.Domain.Common.Auditing;
 using QuanLyBenhVien.Domain.Identity;
 using QuanLyBenhVien.IntegrationTests.Helpers;
 using QuanLyBenhVien.IntegrationTests.Infrastructure;
-using Microsoft.EntityFrameworkCore;
+using QuanLyBenhVien.Presentation.Security;
 using Xunit;
 
 namespace QuanLyBenhVien.IntegrationTests.Authorization;
+
+/// Route chỉ có trong test host để chứng minh policy quyền (chưa có endpoint production dùng RequirePermission).
+public sealed class PermissionProbeModule : ICarterModule
+{
+    public const string Protected = "/api/v1/test-only/perm-probe";
+    public const string NoMetadata = "/api/v1/test-only/no-metadata-probe";
+    public const string Anonymous = "/api/v1/test-only/anonymous-probe";
+    public const string AllowMustChange = "/api/v1/test-only/allow-must-change-probe";
+    public static int Hits;
+
+    public void AddRoutes(IEndpointRouteBuilder app)
+    {
+        app.MapPost(Protected, () => { Interlocked.Increment(ref Hits); return Results.Ok(); })
+            .RequirePermission(Permissions.Users.Read);
+        app.MapGet(NoMetadata, () => { Interlocked.Increment(ref Hits); return Results.Ok(); });
+        app.MapGet(Anonymous, () => Results.Ok()).AllowAnonymous();
+        app.MapGet(AllowMustChange, () => Results.Ok()).RequirePermission(Permissions.Users.Read).AllowWhilePasswordChangeRequired();
+    }
+}
+
+public sealed class ThrowingAuditWriter : IAuditWriter
+{
+    public void Record(string action, AuditResult result, string? reason = null, string? resourceType = null,
+        string? resourceId = null, Guid? actorId = null, IReadOnlyDictionary<string, object?>? metadata = null)
+        => throw new InvalidOperationException("audit down");
+}
 
 [Collection(IntegrationCollection.Name)]
 public class AuthorizationPipelineTests : IAsyncLifetime
@@ -18,7 +52,9 @@ public class AuthorizationPipelineTests : IAsyncLifetime
 
     public AuthorizationPipelineTests(ContainersFixture containers) => _containers = containers;
 
-    public async Task InitializeAsync() => _factory = await ApiFactory.CreateAsync(_containers);
+    private static void AddProbe(IServiceCollection services) => services.AddSingleton<ICarterModule, PermissionProbeModule>();
+
+    public async Task InitializeAsync() => _factory = await ApiFactory.CreateAsync(_containers, configureServices: AddProbe);
 
     public async Task DisposeAsync() => await _factory.DisposeAsync();
 
@@ -37,70 +73,133 @@ public class AuthorizationPipelineTests : IAsyncLifetime
     [Fact]
     public async Task NoToken_Returns401()
     {
-        var response = await new AuthTestClient(_factory.CreateHttpsClient()).GetAsync("/api/v1/permissions");
+        var response = await new AuthTestClient(_factory.CreateHttpsClient())
+            .SendAsync(HttpMethod.Post, PermissionProbeModule.Protected);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Equal("unauthenticated", await CodeAsync(response));
     }
 
     [Fact]
-    public async Task MissingPermission_Returns403AndIsAudited()
+    public async Task MissingPermission_Returns403AndIsAudited_WithoutSecrets()
     {
         var (userId, client) = await UserAsync();
+        var before = PermissionProbeModule.Hits;
 
-        var response = await client.GetAsync("/api/v1/permissions");
+        var response = await client.SendAsync(HttpMethod.Post, PermissionProbeModule.Protected,
+            new { password = "Sup3r-Secret-Body" });
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Equal("forbidden", await CodeAsync(response));
+        Assert.Equal(before, PermissionProbeModule.Hits);
         var record = await TestData.QueryAsync(_factory, db =>
             db.AuditRecords.SingleAsync(a => a.Action == AuditActions.AuthorizationDenied && a.ActorId == userId));
-        Assert.Contains(Permissions.Catalog.Read, record.Metadata);
+        Assert.Equal(AuditResult.Denied, record.Result);
+        Assert.Contains(Permissions.Users.Read, record.Metadata);
+        Assert.Contains(PermissionProbeModule.Protected, record.Metadata);
+        Assert.DoesNotContain("Sup3r-Secret-Body", record.Metadata);
+        Assert.DoesNotContain(client.AccessToken!, record.Metadata);
     }
 
     [Fact]
-    public async Task Admin_GetsPermissionCatalog()
+    public async Task DeactivatedUserWithValidJwt_Returns401_WithoutDenialAudit()
+    {
+        var (userId, client) = await UserAsync(false, SystemRoles.Admin);
+        Assert.Equal(HttpStatusCode.OK, (await client.SendAsync(HttpMethod.Post, PermissionProbeModule.Protected)).StatusCode);
+        await TestData.QueryAsync(_factory, async db =>
+        {
+            await db.Users.Where(u => u.Id == userId).ExecuteUpdateAsync(s => s.SetProperty(u => u.IsActive, false));
+            return 0;
+        });
+        // Xoá cache quyền để request kế tiếp đọc trạng thái khóa từ DB (JWT vẫn còn hạn).
+        await _factory.Services.GetRequiredService<StackExchange.Redis.IConnectionMultiplexer>().GetDatabase()
+            .KeyDeleteAsync(QuanLyBenhVien.Infrastructure.Caching.CacheKeys.Permissions(userId));
+        var before = PermissionProbeModule.Hits;
+
+        var response = await client.SendAsync(HttpMethod.Post, PermissionProbeModule.Protected);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal("unauthenticated", await CodeAsync(response));
+        Assert.Equal(before, PermissionProbeModule.Hits);
+        Assert.False(await TestData.QueryAsync(_factory, db =>
+            db.AuditRecords.AnyAsync(a => a.Action == AuditActions.AuthorizationDenied && a.ActorId == userId)));
+    }
+
+    [Fact]
+    public async Task AuditWriteFails_RequestIsNotExecuted()
+    {
+        var (_, client) = await UserAsync();
+        await using var broken = _factory.WithWebHostBuilder(b => b.ConfigureServices(services =>
+            services.Replace(ServiceDescriptor.Scoped<IAuditWriter, ThrowingAuditWriter>())));
+        var brokenClient = client.CloneWith(broken.CreateClient(new() { BaseAddress = new Uri("https://localhost"), HandleCookies = false }));
+        var before = PermissionProbeModule.Hits;
+
+        var response = await brokenClient.SendAsync(HttpMethod.Post, PermissionProbeModule.Protected);
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal(before, PermissionProbeModule.Hits);
+    }
+
+    [Fact]
+    public async Task Admin_PassesPermissionPolicy()
     {
         var admin = await _factory.LoginAsAdminAsync();
 
-        var body = await (await admin.GetAsync("/api/v1/permissions")).Content.ReadFromJsonAsync<JsonElement>();
-
-        Assert.Equal(Permissions.All.Count, body.GetArrayLength());
+        Assert.Equal(HttpStatusCode.OK, (await admin.SendAsync(HttpMethod.Post, PermissionProbeModule.Protected)).StatusCode);
     }
 
     [Fact]
-    public async Task MustChangePassword_BlocksOtherEndpointsButNotMe()
+    public async Task MustChangePassword_BlocksPermissionRouteEvenForAdmin_ButNotMe()
     {
         var (_, client) = await UserAsync(mustChangePassword: true, SystemRoles.Admin);
+        var before = PermissionProbeModule.Hits;
 
-        var blocked = await client.GetAsync("/api/v1/permissions");
+        var blocked = await client.SendAsync(HttpMethod.Post, PermissionProbeModule.Protected);
         var me = await client.GetAsync("/api/v1/auth/me");
 
         Assert.Equal(HttpStatusCode.Forbidden, blocked.StatusCode);
         Assert.Equal("password_change_required", await CodeAsync(blocked));
+        Assert.Equal(before, PermissionProbeModule.Hits);
         Assert.Equal(HttpStatusCode.OK, me.StatusCode);
     }
 
     [Fact]
-    public async Task Sessions_IsBlockedWhilePasswordChangeRequired()
+    public async Task MustChangePassword_RouteMarkedAllow_PassesPolicy()
     {
-        var (_, client) = await UserAsync(mustChangePassword: true);
+        var (_, client) = await UserAsync(mustChangePassword: true, SystemRoles.Admin);
 
-        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/v1/auth/sessions")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync(PermissionProbeModule.AllowMustChange)).StatusCode);
     }
 
     [Fact]
-    public async Task Health_IsAnonymous()
-        => Assert.Equal(HttpStatusCode.OK, (await _factory.CreateHttpsClient().GetAsync("/health")).StatusCode);
+    public async Task EndpointWithoutPermissionMetadata_StillRequiresLogin()
+    {
+        var anonymous = await new AuthTestClient(_factory.CreateHttpsClient()).GetAsync(PermissionProbeModule.NoMetadata);
+        var (_, client) = await UserAsync();
+        var loggedIn = await client.GetAsync(PermissionProbeModule.NoMetadata);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, loggedIn.StatusCode);
+    }
 
     [Fact]
-    public async Task RedisDown_LoginRefreshAndAuthorizedRequestsStillWork()
+    public async Task AnonymousRoutes_AreNotBlockedByPolicy()
     {
-        // Spec D11: Redis sập ⇒ hệ thống chậm hơn nhưng vẫn chạy (mỗi thao tác Redis chờ hết timeout 1s rồi rơi về DB).
+        var http = _factory.CreateHttpsClient();
+
+        Assert.Equal(HttpStatusCode.OK, (await http.GetAsync("/health")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await http.GetAsync(PermissionProbeModule.Anonymous)).StatusCode);
+    }
+
+    [Fact]
+    public async Task RedisDown_AuthorizedRequestsStillWork()
+    {
+        // Spec D11: Redis sập thì chậm hơn nhưng vẫn chạy (rơi về DB).
         await using var factory = await ApiFactory.CreateAsync(_containers,
-            new Dictionary<string, string?> { ["ConnectionStrings:Redis"] = "127.0.0.1:1" });
+            new Dictionary<string, string?> { ["ConnectionStrings:Redis"] = "127.0.0.1:1" }, AddProbe);
         var admin = await factory.LoginAsAdminAsync();
 
-        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("/api/v1/permissions")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await admin.SendAsync(HttpMethod.Post, PermissionProbeModule.Protected)).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await admin.RefreshAsync()).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("/api/v1/auth/me")).StatusCode);
     }

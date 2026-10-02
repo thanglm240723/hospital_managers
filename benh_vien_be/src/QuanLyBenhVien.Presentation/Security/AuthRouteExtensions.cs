@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 
-namespace QuanLyBenhVien.Presentation.Auth;
+namespace QuanLyBenhVien.Presentation.Security;
 
 public static class AuthRouteExtensions
 {

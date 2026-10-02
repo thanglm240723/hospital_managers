@@ -15,6 +15,7 @@ import { Loading } from './feature';
 import {
   Login, ChangePassword, PrivateRoute, bootAuth, expireSession, AUTH_LOGGED_OUT,
 } from './feature/Auth';
+import PermissionRoute from './feature/Auth/PermissionRoute';
 import { StartContainer, NoAccessContainer } from './feature/Workspace';
 import { AdminUsersPage } from './feature/Admin';
 import { RolesPage } from './feature/Roles';
@@ -70,17 +71,17 @@ const ReactApp = () => (
             <PrivateRoute exact path="/start" component={StartContainer} />
             <PrivateRoute exact path="/no-access" component={NoAccessContainer} />
 
-            <PrivateRoute exact path="/admin/users" component={AdminUsersPage} />
-            <PrivateRoute exact path="/admin/roles" component={RolesPage} />
+            <PermissionRoute exact path="/admin/users" component={AdminUsersPage} />
+            <PermissionRoute exact path="/admin/roles" component={RolesPage} />
 
-            <PrivateRoute exact path="/reception/patients" component={SearchPatientsPage} />
-            <PrivateRoute exact path="/reception/intake/:patientId" component={IntakePage} />
+            <PermissionRoute exact path="/reception/patients" component={SearchPatientsPage} />
+            <PermissionRoute exact path="/reception/intake/:patientId" component={IntakePage} />
 
-            <PrivateRoute exact path="/clinic/queue" component={ClinicQueuePage} />
-            <PrivateRoute exact path="/clinic/encounters/:id" component={EncounterPage} />
+            <PermissionRoute exact path="/clinic/queue" component={ClinicQueuePage} />
+            <PermissionRoute exact path="/clinic/encounters/:id" component={EncounterPage} />
 
             <PrivateRoute exact path="/display/queue" component={DisplayQueuePage} />
-            <PrivateRoute exact path="/vitals" component={VitalsPage} />
+            <PermissionRoute exact path="/vitals" component={VitalsPage} />
 
             <PrivateRoute path="/" component={StartContainer} />
           </Switch>

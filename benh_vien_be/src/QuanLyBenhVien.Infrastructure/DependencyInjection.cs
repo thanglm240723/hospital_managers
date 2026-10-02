@@ -1,3 +1,5 @@
+using QuanLyBenhVien.Application.Common.Identity;
+using QuanLyBenhVien.Infrastructure.Identity;
 using QuanLyBenhVien.Application.Common.Caching;
 using QuanLyBenhVien.Application.Common.Security;
 using QuanLyBenhVien.Application.Features.Auth.Common;
@@ -64,6 +66,7 @@ public static class DependencyInjection
         services.AddSingleton<IRequestOriginPolicy, RequestOriginPolicy>();
         services.AddSingleton<ISessionCache, SessionCache>();
         services.AddSingleton<ICacheKeyEvictor, RedisCacheKeyEvictor>();
+        services.AddScoped<IPermissionService, PermissionService>();
         services.AddHostedService<CacheInvalidationWorker>();
 
         return services;

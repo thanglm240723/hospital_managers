@@ -3,7 +3,7 @@ import { connect } from 'react-redux';
 import { Route, Redirect } from 'react-router-dom';
 
 const PrivateRoute = ({
-  component: Component, status, mustChangePassword, ...rest
+  component: Component, render, status, mustChangePassword, ...rest
 }) => (
   <Route
     {...rest}
@@ -15,7 +15,7 @@ const PrivateRoute = ({
       if (mustChangePassword && props.location.pathname !== '/change-password') {
         return <Redirect to="/change-password" />;
       }
-      return <Component {...props} />;
+      return render ? render(props) : <Component {...props} />;
     }}
   />
 );

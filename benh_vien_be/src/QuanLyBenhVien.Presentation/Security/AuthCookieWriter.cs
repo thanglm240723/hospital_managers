@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http;
 
-namespace QuanLyBenhVien.Presentation.Auth;
+namespace QuanLyBenhVien.Presentation.Security;
 
 /// Đặc tả kỹ thuật §4.1: host-only, Secure, SameSite=Strict, Path=/, không Domain (điều kiện của tiền tố __Host-).
 public sealed class AuthCookieWriter(TimeProvider time)

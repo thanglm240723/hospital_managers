@@ -1,3 +1,4 @@
+using QuanLyBenhVien.Application.Common.Identity;
 using QuanLyBenhVien.Application.Common.Auditing;
 using QuanLyBenhVien.Application.Common.Caching;
 using QuanLyBenhVien.Persistence.Caching;
@@ -34,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IAuditWriter, AuditWriter>();
         services.AddScoped<IAuthReadService, AuthReadService>();
+        services.AddScoped<IUserAccessReadService, UserAccessReadService>();
         services.AddScoped<IRefreshSessionLookup, RefreshSessionLookup>();
         services.AddScoped<ICacheInvalidationStore, CacheInvalidationStore>();
 

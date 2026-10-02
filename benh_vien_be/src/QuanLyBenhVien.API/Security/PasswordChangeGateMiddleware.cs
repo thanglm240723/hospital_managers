@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
-using QuanLyBenhVien.Application.Features.Auth.Common;
-using QuanLyBenhVien.Presentation.Auth;
+using QuanLyBenhVien.Application.Common.Identity;
+using QuanLyBenhVien.Presentation.Security;
 using QuanLyBenhVien.Presentation.Http;
 
 namespace QuanLyBenhVien.API.Security;
@@ -12,7 +12,7 @@ namespace QuanLyBenhVien.API.Security;
 /// Đọc cờ lỗi ⇒ exception lan ra exception handler, request không đi tiếp.
 public sealed class PasswordChangeGateMiddleware(RequestDelegate next)
 {
-    public async Task InvokeAsync(HttpContext context, IAuthReadService authRead)
+    public async Task InvokeAsync(HttpContext context, IPermissionService permissions)
     {
         var endpoint = context.GetEndpoint();
         if (endpoint is null
@@ -30,14 +30,14 @@ public sealed class PasswordChangeGateMiddleware(RequestDelegate next)
             return;
         }
 
-        var me = await authRead.GetMeAsync(userId, context.RequestAborted);
-        if (me is null)
+        var access = await permissions.GetAsync(userId, context.RequestAborted);
+        if (access is null)
         {
             await Write(context, StatusCodes.Status401Unauthorized, "unauthenticated", "Chưa đăng nhập hoặc phiên đã hết hạn.");
             return;
         }
 
-        if (me.MustChangePassword)
+        if (access.MustChangePassword)
         {
             await Write(context, StatusCodes.Status403Forbidden, "password_change_required", "Bạn cần đổi mật khẩu trước khi tiếp tục.");
             return;

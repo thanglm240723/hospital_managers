@@ -80,9 +80,9 @@
 
 ## Task 4 — Nghiệm thu cả FE và BE
 
-- [ ] Bật các test authorization đã port trong IT csproj; không bật test admin còn thiếu endpoint để rồi xóa assertions.
-- [ ] Full + Frontend + build FE. Kiểm code mới không dựa hard-code tên role để cho quyền.
+- [x] Bật các test authorization đã port trong IT csproj; không bật test admin còn thiếu endpoint để rồi xóa assertions.
+- [x] Full + Frontend + build FE (PASS). Kiểm code mới không dựa hard-code tên role để cho quyền (grep `git diff ce19d96..HEAD`: không có).
 - [ ] Trình duyệt: đổi bắt buộc, không quyền, nhiều khu vực bằng fixture hợp lệ; thử URL trực tiếp, đổi khu vực, đổi quyền rồi Kiểm tra lại. Fixture/test-only không trở thành seed quyền nghiệp vụ production.
 - [ ] Review branch/commit theo plan.md. Sau 04, quản trị vẫn cần 05/06; không báo mọi role đã có đầy đủ màn nghiệp vụ.
 
-**Trạng thái:** NOT_RUN.
+**Trạng thái:** Task 4 xong phần tự động (Full 166 unit + 144 IT pass/8 skip, Frontend 130 pass, build FE pass). Kiểm tay trình duyệt: NOT_RUN. Review branch/commit: chưa làm (chờ người dùng).

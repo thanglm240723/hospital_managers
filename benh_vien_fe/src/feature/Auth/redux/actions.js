@@ -8,6 +8,7 @@ import { setAccessToken, clearAccessToken } from '../session/tokenStore';
 import {
   AUTH_BOOTING, AUTH_AUTHENTICATED, AUTH_ANONYMOUS, AUTH_LOGGED_OUT,
 } from './actionTypes';
+import { WORKSPACE_CLEARED } from '../../Workspace/redux/reducer';
 
 export const SESSION_EXPIRED_MESSAGE = 'Phiên đăng nhập đã hết hiệu lực. Vui lòng đăng nhập lại.';
 export const LOGOUT_UNCONFIRMED_MESSAGE = 'Đã thoát trên thiết bị này; chưa xác nhận thu hồi phiên trên máy chủ.';
@@ -36,6 +37,8 @@ export const bootAuth = () => async (dispatch) => {
 
 export const login = (email, password) => async (dispatch) => {
   const epoch = beginSessionTransition();
+  // Mỗi lần nhập credential là lựa chọn mới: bỏ khu vực đã chọn trước đó (kể cả cùng tài khoản).
+  dispatch({ type: WORKSPACE_CLEARED });
   const data = await authClient.login(email, password);
   // Logout/đăng nhập khác xảy ra trong lúc chờ: không áp dụng token đến muộn.
   if (!isCurrentSessionEpoch(epoch)) return null;
