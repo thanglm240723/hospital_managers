@@ -184,6 +184,35 @@ public class UsersAdminTests : IAsyncLifetime
             db.AuditRecords.AnyAsync(a => a.Action == AuditActions.UserActivate && a.ResourceId == userId.ToString())));
     }
 
+    /// Login tham gia khoá User và kiểm lại IsActive: dù thứ tự nào, sau khi cả hai xong không còn family active
+    /// và refresh token nhận được (nếu login thắng) không dùng được.
+    [Fact]
+    public async Task LoginConcurrentWithDeactivate_NeverLeavesActiveSession()
+    {
+        for (var i = 0; i < 8; i++)
+        {
+            var email = TestData.NewEmail("race-login");
+            var userId = await TestData.CreateUserAsync(_factory, email);
+            var user = new AuthTestClient(_factory.CreateHttpsClient());
+
+            var login = user.LoginAsync(email, TestData.DefaultPassword);
+            var deactivate = _admin.SendAsync(HttpMethod.Post, $"/api/v1/users/{userId}/deactivate");
+            await Task.WhenAll(login, deactivate);
+
+            Assert.Equal(HttpStatusCode.OK, deactivate.Result.StatusCode);
+            Assert.False(await TestData.QueryAsync(_factory, db =>
+                db.SessionFamilies.AnyAsync(f => f.UserId == userId && f.Status == SessionStatus.Active)));
+            if (login.Result.StatusCode == HttpStatusCode.OK)
+            {
+                Assert.Equal(HttpStatusCode.Unauthorized, (await user.RefreshAsync()).StatusCode);
+            }
+            else
+            {
+                Assert.Equal(HttpStatusCode.Unauthorized, login.Result.StatusCode);
+            }
+        }
+    }
+
     [Fact]
     public async Task ActivateOrDeactivateUnknownUser_Returns404()
     {

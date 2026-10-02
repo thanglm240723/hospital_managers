@@ -19,7 +19,7 @@ internal static class UserCommandCompletion
             logger.LogWarning(ex, "Flush cache invalidation sau thay đổi tài khoản thất bại; worker sẽ xử lý lại.");
         }
 
-        var dto = await readService.GetAsync(userId, ct);
+        var dto = await readService.GetAsync(userId, CancellationToken.None);
         return dto is null ? UsersErrors.NotFound : dto;
     }
 }
