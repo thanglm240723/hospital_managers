@@ -13,6 +13,7 @@ public sealed class Role : AggregateRoot<Guid>, IAuditable
     public string Code { get; private set; } = default!;
     public string Name { get; private set; } = default!;
     public bool IsSystem { get; private set; }
+    public uint RowVersion { get; private set; }
     public IReadOnlyCollection<RolePermission> GrantedPermissions => _grantedPermissions.AsReadOnly();
 
     private Role() { }

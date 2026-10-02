@@ -14,6 +14,7 @@ internal sealed class RoleConfiguration : IEntityTypeConfiguration<Role>
         builder.HasIndex(r => r.Code).IsUnique();
         builder.Property(r => r.Name).IsRequired().HasMaxLength(100);
         builder.HasMany(r => r.GrantedPermissions).WithOne().HasForeignKey(p => p.RoleId).OnDelete(DeleteBehavior.Cascade);
+        builder.Property(r => r.RowVersion).IsRowVersion();
         builder.Ignore(r => r.DomainEvents);
     }
 }
