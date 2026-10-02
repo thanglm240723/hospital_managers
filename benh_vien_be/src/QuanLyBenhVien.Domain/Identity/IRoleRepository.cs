@@ -10,6 +10,8 @@ public interface IRoleRepository
     Task<bool> CodeExistsAsync(string code, CancellationToken ct = default);
     /// Khoá hàng role (FOR UPDATE) rồi nạp lại bản mới nhất kèm GrantedPermissions, tracking. PHẢI gọi trong transaction.
     Task<Role?> GetForUpdateAsync(Guid id, CancellationToken ct = default);
+    /// Khoá các hàng role (FOR UPDATE) theo thứ tự Id tăng dần trong một câu lệnh; trả Id các role tồn tại. PHẢI gọi trong transaction.
+    Task<IReadOnlyList<Guid>> LockAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default);
     /// Buộc UPDATE bản ghi Role (để xmin/RowVersion đổi) khi chỉ bảng con RolePermissions thay đổi.
     void MarkChanged(Role role);
     Task AddAsync(Role role, CancellationToken ct = default);

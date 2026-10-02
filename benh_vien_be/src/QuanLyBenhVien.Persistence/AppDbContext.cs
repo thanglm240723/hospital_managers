@@ -26,6 +26,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     private static class TranslatedUniqueConstraints
     {
         public const string Roles = "IX_Roles_Code";
+        public const string UserEmail = "IX_Users_Email";
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken ct = default)
@@ -34,7 +35,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         {
             return await base.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation, ConstraintName: TranslatedUniqueConstraints.Roles } pg)
+        catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation, ConstraintName: TranslatedUniqueConstraints.Roles or TranslatedUniqueConstraints.UserEmail } pg)
         {
             throw new QuanLyBenhVien.Domain.Exceptions.UniqueConstraintViolationException(pg.ConstraintName, ex);
         }

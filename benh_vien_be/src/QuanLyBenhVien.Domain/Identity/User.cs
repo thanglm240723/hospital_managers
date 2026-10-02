@@ -27,19 +27,19 @@ public sealed class User : AggregateRoot<Guid>, IAuditable
 
     private User() { }
 
-    private User(Guid id, string fullName, string email, string passwordHash, string? avatarUrl)
+    private User(Guid id, string fullName, string email, string passwordHash, string? avatarUrl, DateTimeOffset createdAt)
     {
         Id = id;
         FullName = fullName;
         Email = email;
         PasswordHash = passwordHash;
         AvatarUrl = avatarUrl;
-        CreatedAt = DateTimeOffset.UtcNow;
+        CreatedAt = createdAt;
         MustChangePassword = true;
     }
 
     /// Mật khẩu ban đầu luôn do Admin/seed đặt, nên tài khoản mới phải đổi mật khẩu ở lần đăng nhập đầu.
-    public static User Create(string fullName, string email, string passwordHash, string? avatarUrl)
+    public static User Create(string fullName, string email, string passwordHash, string? avatarUrl, DateTimeOffset? createdAt = null)
     {
         if (string.IsNullOrWhiteSpace(fullName))
             throw new ArgumentException("Full name cannot be empty.", nameof(fullName));
@@ -48,7 +48,7 @@ public sealed class User : AggregateRoot<Guid>, IAuditable
         if (string.IsNullOrWhiteSpace(passwordHash))
             throw new ArgumentException("Password hash cannot be empty.", nameof(passwordHash));
 
-        var user = new User(Guid.CreateVersion7(), fullName.Trim(), NormalizeEmail(email), passwordHash, avatarUrl);
+        var user = new User(Guid.CreateVersion7(), fullName.Trim(), NormalizeEmail(email), passwordHash, avatarUrl, createdAt ?? DateTimeOffset.UtcNow);
         user.Raise(new UserRegisteredDomainEvent(user.Id, user.Email));
         return user;
     }
@@ -84,20 +84,20 @@ public sealed class User : AggregateRoot<Guid>, IAuditable
         return email.Trim().ToLowerInvariant();
     }
 
-    public void Deactivate()
+    public void Deactivate(DateTimeOffset? now = null)
     {
         if (!IsActive) return;
         IsActive = false;
         SecurityVersion++;
-        Touch();
+        Touch(now);
         Raise(new UserDeactivatedDomainEvent(Id));
     }
 
-    public void Activate()
+    public void Activate(DateTimeOffset? now = null)
     {
         if (IsActive) return;
         IsActive = true;
-        Touch();
+        Touch(now);
         Raise(new UserActivatedDomainEvent(Id));
     }
 
@@ -122,7 +122,7 @@ public sealed class User : AggregateRoot<Guid>, IAuditable
         }
 
         if (removed + added == 0) return;
-        Touch();
+        Touch(now);
         Raise(new UserRolesChangedDomainEvent(Id));
     }
 
@@ -135,16 +135,16 @@ public sealed class User : AggregateRoot<Guid>, IAuditable
         if (_permissionGrants.Any(p => p.PermissionCode == permissionCode)) return;
 
         _permissionGrants.Add(new UserPermission(Id, permissionCode, reason.Trim(), grantedBy, now));
-        Touch();
+        Touch(now);
         Raise(new UserPermissionsChangedDomainEvent(Id));
     }
 
-    public void RevokePermission(string permissionCode)
+    public void RevokePermission(string permissionCode, DateTimeOffset? now = null)
     {
         if (_permissionGrants.RemoveAll(p => p.PermissionCode == permissionCode) == 0) return;
-        Touch();
+        Touch(now);
         Raise(new UserPermissionsChangedDomainEvent(Id));
     }
 
-    private void Touch() => UpdatedAt = DateTimeOffset.UtcNow;
+    private void Touch(DateTimeOffset? now = null) => UpdatedAt = now ?? DateTimeOffset.UtcNow;
 }

@@ -223,7 +223,7 @@ public class RolesCommandTests : IAsyncLifetime
 
     /// SetRolePermissions phải khoá admin-safety (chung với SetUserRoles) rồi mới đọc holder, nếu không gán role
     /// chạy song song có thể lọt khỏi vòng invalidate và member giữ quyền đã gỡ vô thời hạn.
-    [Fact(Skip = "Chờ SetUserRoles plan 06 — phải lấy AcquireAdminSafetyLockAsync trước khi ghi UserRoles")]
+    [Fact]
     public async Task SetRolePermissions_ConcurrentWithRoleAssignment_NeverLeavesStalePermission()
     {
         for (var i = 0; i < 8; i++)
@@ -234,8 +234,9 @@ public class RolesCommandTests : IAsyncLifetime
             var member = new AuthTestClient(_factory.CreateHttpsClient());
             (await member.LoginAsync(email, TestData.DefaultPassword)).EnsureSuccessStatusCode();
 
+            var userVersion = (await JsonAsync(await _admin.GetAsync($"/api/v1/users/{memberId}"))).GetProperty("rowVersion").GetUInt32();
             var responses = await Task.WhenAll(
-                _admin.SendAsync(HttpMethod.Put, $"/api/v1/users/{memberId}/roles", new { roleIds = new[] { roleId } }),
+                PutAsync($"/api/v1/users/{memberId}/roles", new { roleIds = new[] { roleId } }, userVersion),
                 PutAsync($"/api/v1/roles/{roleId}/permissions", new { permissionCodes = Array.Empty<string>() }, version));
 
             Assert.All(responses, r => Assert.True(r.IsSuccessStatusCode));

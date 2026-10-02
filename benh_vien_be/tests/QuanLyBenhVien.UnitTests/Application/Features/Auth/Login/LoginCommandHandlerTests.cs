@@ -37,6 +37,8 @@ file sealed class FakeUserRepository : IUserRepository
     public void UpdateUser(User user) { }
     public Task<bool> EmailExistsAsync(string email, CancellationToken ct = default) => Task.FromResult(false);
     public Task<User?> GetWithAccessAsync(Guid id, CancellationToken ct = default) => Task.FromResult(User);
+    public Task<User?> GetWithAccessForUpdateAsync(Guid id, CancellationToken ct = default) => Task.FromResult(User);
+    public Task<IReadOnlyList<Guid>> GetRoleIdsAsync(Guid userId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Guid>>([]);
     public Task<int> CountActiveUsersInRoleAsync(Guid roleId, Guid? excludingUserId, CancellationToken ct = default) => Task.FromResult(0);
     public Task<IReadOnlyList<Guid>> GetUserIdsInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Guid>>([]);
     public Task AcquireAdminSafetyLockAsync(CancellationToken ct = default) => Task.CompletedTask;

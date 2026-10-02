@@ -58,6 +58,30 @@ internal sealed class UserRepository : IUserRepository
             .Include(u => u.PermissionGrants)
             .SingleOrDefaultAsync(u => u.Id == id, ct);
 
+    public async Task<User?> GetWithAccessForUpdateAsync(Guid id, CancellationToken ct = default)
+    {
+        EnsureTransaction();
+        await _context.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT 1 FROM \"Users\" WHERE \"Id\" = {id} FOR UPDATE", ct);
+
+        // Bỏ instance cũ (cùng bảng con) nếu đã tracking để nạp lại đúng dữ liệu đã commit.
+        foreach (var entry in _context.ChangeTracker.Entries().Where(e =>
+                     (e.Entity is User u && u.Id == id)
+                     || (e.Entity is UserRole r && r.UserId == id)
+                     || (e.Entity is UserPermission p && p.UserId == id)).ToList())
+        {
+            entry.State = EntityState.Detached;
+        }
+
+        return await _context.Users
+            .Include(u => u.RoleAssignments)
+            .Include(u => u.PermissionGrants)
+            .SingleOrDefaultAsync(u => u.Id == id, ct);
+    }
+
+    public async Task<IReadOnlyList<Guid>> GetRoleIdsAsync(Guid userId, CancellationToken ct = default)
+        => await _context.Set<UserRole>().AsNoTracking().Where(r => r.UserId == userId).Select(r => r.RoleId).ToListAsync(ct);
+
     public async Task<int> CountActiveUsersInRoleAsync(Guid roleId, Guid? excludingUserId, CancellationToken ct = default)
         => await _context.Users.CountAsync(u =>
             u.IsActive && u.Id != excludingUserId && u.RoleAssignments.Any(r => r.RoleId == roleId), ct);
