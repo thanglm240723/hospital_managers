@@ -330,3 +330,38 @@ describe('CreateUserDialog', () => {
     expect(container.textContent).toContain('roles.read');
   });
 });
+
+describe('UserDetailPanel — vòng fix 1', () => {
+  it('grant thành công khi đang có draft vai trò chưa lưu: không báo xung đột giả, vẫn lưu được vai trò', async () => {
+    const p = handlers();
+    p.onGrantPermission.mockResolvedValue({ ...user, rowVersion: 4 });
+    render(<UserDetailPanel {...p} />);
+    click(container.querySelector('#udp-role-r2'));
+    act(() => setInput(container.querySelector('#udp-reason'), 'Lý do'));
+    click(row('b.read').querySelector('button'));
+    await flush();
+    act(() => { ReactDOM.render(<Provider store={store}><UserDetailPanel {...p} user={{ ...user, rowVersion: 4 }} /></Provider>, container); });
+    expect(container.textContent).not.toContain('đã thay đổi so với bản bạn đang sửa');
+    expect(button('Lưu vai trò').disabled).toBe(false);
+  });
+
+  it('thiếu roleOptions: quyền chỉ từ grant không gắn "Từ vai trò"; quyền hiệu lực không grant báo không xác định nguồn', () => {
+    const u = { ...user, effectivePermissions: ['a.read', 'b.read'], permissionGrants: [{ code: 'a.read', reason: 'x' }] };
+    render(<UserDetailPanel {...handlers({ user: u, roleOptions: [], roleOptionsError: 'tài khoản không có quyền roles.read' })} />);
+    expect(row('a.read').textContent).not.toContain('Từ vai trò');
+    expect(row('b.read').textContent).toContain('Không xác định nguồn vai trò (thiếu roles.read)');
+  });
+
+  it('sao chép lỗi: hiện hướng dẫn chép tay', async () => {
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: jest.fn().mockRejectedValue(new Error('x')) }, configurable: true });
+    const onCreate = jest.fn().mockResolvedValue({ user: { email: 'a@x.vn' }, initialPassword: 'Pw#1' });
+    render(<CreateUserDialog onCreate={onCreate} onClose={jest.fn()} roleOptions={roleOptions} />);
+    act(() => { setInput(container.querySelector('#cu-fullname'), 'A'); setInput(container.querySelector('#cu-email'), 'a@x.vn'); });
+    click(container.querySelector('#cu-role-r1'));
+    act(() => { container.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
+    await flush();
+    click(button('Sao chép'));
+    await flush();
+    expect(container.textContent).toContain('Không sao chép được, hãy chép tay');
+  });
+});

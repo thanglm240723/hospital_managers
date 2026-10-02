@@ -60,6 +60,14 @@ class UserDetailPanel extends React.Component {
     return user.rowVersion !== base.rowVersion;
   };
 
+  // Lệnh khác do chính panel gọi thành công làm rowVersion tăng: nếu vai trò server không đổi so với base thì chỉ đồng bộ version, giữ draft.
+  syncVersion = (updated) => {
+    if (this.unmounted || !updated) return;
+    this.setState(state => (sameSet(idsOf(updated.roles), state.base.roleIds)
+      ? { base: { ...state.base, rowVersion: updated.rowVersion } }
+      : null));
+  };
+
   resetRoles = () => {
     const { user } = this.props;
     this.setState({
@@ -93,7 +101,8 @@ class UserDetailPanel extends React.Component {
     this.setState({ permBusy: true, permError: null });
     try {
       const call = revoke ? onRevokePermission : onGrantPermission;
-      await call(user.id, code, reason.trim(), user.rowVersion);
+      const updated = await call(user.id, code, reason.trim(), user.rowVersion);
+      this.syncVersion(updated);
       if (!this.unmounted) this.setState({ reason: '' });
     } catch (error) {
       // Giữ nguyên lý do đã nhập để người dùng thử lại thủ công sau khi nạp lại.
@@ -107,8 +116,8 @@ class UserDetailPanel extends React.Component {
     const { user, onActivate, onDeactivate } = this.props;
     this.setState({ busy: true, lockError: null });
     try {
-      if (user.isActive) await onDeactivate(user.id);
-      else await onActivate(user.id);
+      const updated = user.isActive ? await onDeactivate(user.id) : await onActivate(user.id);
+      this.syncVersion(updated);
       if (!this.unmounted) this.setState({ confirmLock: false });
     } catch (error) {
       if (!this.unmounted) this.setState({ lockError: describeError(error).message, confirmLock: false });
@@ -197,7 +206,8 @@ class UserDetailPanel extends React.Component {
       const grant = grantOf(item.code);
       const isEffective = effective.indexOf(item.code) !== -1;
       const viaRoles = roleSources(item.code);
-      const fromRole = isEffective && (!grant || viaRoles.length > 0 || roleOptions.length === 0);
+      const unknownSource = isEffective && !grant && roleOptions.length === 0;
+      const fromRole = isEffective && (viaRoles.length > 0 || (!grant && roleOptions.length > 0));
       const canGrant = !grant && known.indexOf(item.code) !== -1;
       const reasonOk = reason.trim().length > 0;
       return (
@@ -206,6 +216,7 @@ class UserDetailPanel extends React.Component {
           {isEffective ? <span className="c-badge c-badge--success">Có quyền</span> : <span className="c-badge c-badge--default">Không có quyền</span>}
           {grant && <span className="c-badge c-badge--warning">{`Cấp thêm: ${grant.reason}`}</span>}
           {fromRole && <span className="c-badge c-badge--default">{viaRoles.length > 0 ? `Từ vai trò: ${viaRoles.join(', ')}` : 'Từ vai trò'}</span>}
+          {unknownSource && <span className="c-badge c-badge--default">Không xác định nguồn vai trò (thiếu roles.read)</span>}
           <Can permission={PERMISSIONS.USERS_PERMISSIONS_MANAGE}>
             <span>
               {grant && (

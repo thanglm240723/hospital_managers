@@ -10,7 +10,7 @@ const fieldMessage = (errors, name) => {
 // Mật khẩu ban đầu chỉ nằm trong state cục bộ của dialog này (không vào Redux/storage/log) và mất khi đóng dialog.
 class CreateUserDialog extends React.Component {
   state = {
-    fullName: '', email: '', roleIds: [], submitting: false, error: null, fieldErrors: {}, result: null, copied: false,
+    fullName: '', email: '', roleIds: [], submitting: false, error: null, fieldErrors: {}, result: null, copied: false, copyError: false,
   };
 
   componentWillUnmount() {
@@ -62,16 +62,16 @@ class CreateUserDialog extends React.Component {
   handleCopy = async (password) => {
     try {
       await navigator.clipboard.writeText(password);
-      this.setState({ copied: true });
+      this.setState({ copied: true, copyError: false });
     } catch (error) {
-      this.setState({ copied: false });
+      this.setState({ copied: false, copyError: true });
     }
   };
 
   render() {
     const { onClose, roleOptions, roleOptionsReason } = this.props;
     const {
-      fullName, email, roleIds, submitting, error, fieldErrors, result, copied,
+      fullName, email, roleIds, submitting, error, fieldErrors, result, copied, copyError,
     } = this.state;
 
     if (result) {
@@ -87,6 +87,7 @@ class CreateUserDialog extends React.Component {
               người dùng phải đổi mật khẩu ở lần đăng nhập đầu.
             </p>
             {copied && <p role="status">Đã sao chép.</p>}
+            {copyError && <p role="alert">Không sao chép được, hãy chép tay.</p>}
             <div className="c-confirm-dialog__actions">
               <button type="button" className="c-login__secondary" onClick={() => this.handleCopy(result.initialPassword)}>Sao chép</button>
               <button type="button" className="c-login__submit" onClick={onClose}>Đóng</button>

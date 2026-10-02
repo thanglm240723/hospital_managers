@@ -17,3 +17,15 @@ describe('Màn Tài khoản trong route registry', () => {
     expect(getDefaultRoute('admin', [PERMISSIONS.USERS_READ, PERMISSIONS.ROLES_READ], FEATURE_AVAILABILITY)).toBe('/admin/users');
   });
 });
+
+describe('Chế độ mock', () => {
+  it('màn Tài khoản không hỗ trợ mock: availability admin.users tắt', () => {
+    const old = process.env.REACT_APP_USE_MOCK_API;
+    process.env.REACT_APP_USE_MOCK_API = 'true';
+    jest.resetModules();
+    const mocked = require('feature/Workspace/availability').FEATURE_AVAILABILITY; // eslint-disable-line global-require
+    process.env.REACT_APP_USE_MOCK_API = old;
+    expect(mocked['admin.users']).toBe(false);
+    expect(mocked['admin.roles']).toBe(true);
+  });
+});
