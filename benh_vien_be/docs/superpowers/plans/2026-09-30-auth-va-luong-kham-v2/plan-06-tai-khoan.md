@@ -102,4 +102,4 @@ Mutation vào user hiện có (trừ activate/deactivate) nhận If-Match như p
 - [ ] Test qua Gateway cho quyền bị thu hồi/token cũ, không chỉ direct API. Không dùng tài khoản admin để che thiếu policy của role thường.
 - [ ] Review diff và checklist main theo plan.md. Không tự bật Reception/Clinic/Vitals chỉ vì đã tạo các role có tên tương ứng.
 
-**Trạng thái:** NOT_RUN. Kết thúc bộ auth/quản trị, chuyển sang plan nghiệp vụ dựa trên [luồng khám và hồ sơ](luong-kham-va-ho-so.md), không coi BE nghiệp vụ đã hoàn thành.
+**Trạng thái:** ĐÃ TRIỂN KHAI 2026-10-03 (f13c5b6..ebd5d89). validate Full PASS (unit 170, IT 195/8 skip), Frontend PASS (196 test), `npm run build` PASS, không pending model change. Trình duyệt: NOT_RUN. CẦN_XÁC_NHẬN: `User.RowVersion` = xmin nên đăng nhập của user đích làm If-Match của admin cũ → 412 giả; hiện chấp nhận (FE nạp lại khi 412). Kết thúc bộ auth/quản trị, chuyển sang plan nghiệp vụ dựa trên [luồng khám và hồ sơ](luong-kham-va-ho-so.md), không coi BE nghiệp vụ đã hoàn thành.

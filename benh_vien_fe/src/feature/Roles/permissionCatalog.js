@@ -39,6 +39,19 @@ export const PERMISSION_CATALOG = [
   },
 ];
 
+// Dữ liệu giả cho mock và các màn Admin chưa nối API (plan 06). Màn Vai trò & quyền dùng API thật.
+export const MOCK_PERMISSIONS = PERMISSION_CATALOG.flatMap(group => group.items.map(item => ({
+  code: item.code, group: group.module, description: item.label,
+})));
+
+// Nhóm danh mục quyền từ API ({code, group, description}) để hiển thị.
+export const groupPermissions = permissions => permissions.reduce((groups, permission) => {
+  const found = groups.find(g => g.module === permission.group);
+  if (found) found.items.push(permission);
+  else groups.push({ module: permission.group, items: [permission] });
+  return groups;
+}, []);
+
 // 9 vai trò hệ thống theo mô tả nghiệp vụ — chỉ đọc, không sửa/xóa.
 export const SYSTEM_ROLES = [
   { id: 'role-admin', name: 'Quản trị hệ thống', system: true },

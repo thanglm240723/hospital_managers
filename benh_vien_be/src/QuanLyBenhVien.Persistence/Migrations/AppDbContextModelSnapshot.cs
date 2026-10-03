@@ -22,6 +22,111 @@ namespace QuanLyBenhVien.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("QuanLyBenhVien.Domain.Catalog.Facilities.Branch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<uint>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Branches", (string)null);
+                });
+
+            modelBuilder.Entity("QuanLyBenhVien.Domain.Catalog.Facilities.Department", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<uint>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId", "Code")
+                        .IsUnique();
+
+                    b.ToTable("Departments", (string)null);
+                });
+
+            modelBuilder.Entity("QuanLyBenhVien.Domain.Catalog.Facilities.Room", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<Guid>("DepartmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<uint>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepartmentId", "Code")
+                        .IsUnique();
+
+                    b.ToTable("Rooms", (string)null);
+                });
+
             modelBuilder.Entity("QuanLyBenhVien.Domain.Common.Auditing.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -161,6 +266,12 @@ namespace QuanLyBenhVien.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<uint>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Code")
@@ -267,6 +378,61 @@ namespace QuanLyBenhVien.Persistence.Migrations
                     b.ToTable("SessionFamilies", (string)null);
                 });
 
+            modelBuilder.Entity("QuanLyBenhVien.Domain.Identity.Staff.StaffProfile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<uint>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<string>("StaffCode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StaffCode")
+                        .IsUnique()
+                        .HasDatabaseName("IX_StaffProfiles_StaffCode");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_StaffProfiles_UserId");
+
+                    b.ToTable("StaffProfiles", (string)null);
+                });
+
+            modelBuilder.Entity("QuanLyBenhVien.Domain.Identity.Staff.StaffWorkScope", b =>
+                {
+                    b.Property<Guid>("StaffProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DepartmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("StaffProfileId", "DepartmentId");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.ToTable("StaffWorkScopes", (string)null);
+                });
+
             modelBuilder.Entity("QuanLyBenhVien.Domain.Identity.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -303,6 +469,12 @@ namespace QuanLyBenhVien.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<uint>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.Property<int>("SecurityVersion")
                         .HasColumnType("integer");
@@ -402,6 +574,41 @@ namespace QuanLyBenhVien.Persistence.Migrations
                     b.ToTable("CacheInvalidations", (string)null);
                 });
 
+            modelBuilder.Entity("QuanLyBenhVien.Persistence.Seed.RolePermissionDefault", b =>
+                {
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PermissionCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset>("AppliedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("RoleId", "PermissionCode");
+
+                    b.ToTable("RolePermissionDefaults", (string)null);
+                });
+
+            modelBuilder.Entity("QuanLyBenhVien.Domain.Catalog.Facilities.Department", b =>
+                {
+                    b.HasOne("QuanLyBenhVien.Domain.Catalog.Facilities.Branch", null)
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("QuanLyBenhVien.Domain.Catalog.Facilities.Room", b =>
+                {
+                    b.HasOne("QuanLyBenhVien.Domain.Catalog.Facilities.Department", null)
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("QuanLyBenhVien.Domain.Identity.RolePermission", b =>
                 {
                     b.HasOne("QuanLyBenhVien.Domain.Identity.Permission", null)
@@ -431,6 +638,36 @@ namespace QuanLyBenhVien.Persistence.Migrations
                     b.HasOne("QuanLyBenhVien.Domain.Identity.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("QuanLyBenhVien.Domain.Identity.Staff.StaffProfile", b =>
+                {
+                    b.HasOne("QuanLyBenhVien.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("QuanLyBenhVien.Domain.Identity.Staff.StaffWorkScope", b =>
+                {
+                    b.HasOne("QuanLyBenhVien.Domain.Catalog.Facilities.Branch", null)
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("QuanLyBenhVien.Domain.Catalog.Facilities.Department", null)
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("QuanLyBenhVien.Domain.Identity.Staff.StaffProfile", null)
+                        .WithMany("WorkScopes")
+                        .HasForeignKey("StaffProfileId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -465,6 +702,15 @@ namespace QuanLyBenhVien.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("QuanLyBenhVien.Persistence.Seed.RolePermissionDefault", b =>
+                {
+                    b.HasOne("QuanLyBenhVien.Domain.Identity.Role", null)
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("QuanLyBenhVien.Domain.Identity.Role", b =>
                 {
                     b.Navigation("GrantedPermissions");
@@ -473,6 +719,11 @@ namespace QuanLyBenhVien.Persistence.Migrations
             modelBuilder.Entity("QuanLyBenhVien.Domain.Identity.Sessions.SessionFamily", b =>
                 {
                     b.Navigation("Tokens");
+                });
+
+            modelBuilder.Entity("QuanLyBenhVien.Domain.Identity.Staff.StaffProfile", b =>
+                {
+                    b.Navigation("WorkScopes");
                 });
 
             modelBuilder.Entity("QuanLyBenhVien.Domain.Identity.User", b =>

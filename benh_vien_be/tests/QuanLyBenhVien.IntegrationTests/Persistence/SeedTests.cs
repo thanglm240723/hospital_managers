@@ -35,7 +35,7 @@ public class SeedTests
 
         var adminRole = roles.Single(r => r.Code == SystemRoles.Admin);
         Assert.Equal(
-            Permissions.IdentityAccess.Select(p => p.Code).OrderBy(c => c),
+            Permissions.All.Select(p => p.Code).OrderBy(c => c),
             adminRole.GrantedPermissions.Select(p => p.PermissionCode).OrderBy(c => c));
 
         var admin = await db.Users.Include(u => u.RoleAssignments).SingleAsync(u => u.Email == factory.AdminEmail);

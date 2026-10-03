@@ -91,4 +91,4 @@ Thay đổi bảng con RolePermissions không tự tăng `xmin` của Role. Bổ
 - [ ] Trình duyệt role chỉ đọc, quản lý, tạo/clone, sửa quyền, 412; tài khoản member tải `/me` sau invalidation thấy đúng quyền. Người không quyền gọi API trực tiếp vẫn bị chặn.
 - [ ] Review diff, điều khoản bảo vệ admin lõi và source spec lệch mock; chuẩn bị commit theo plan.md. Chưa nghiệm thu quản lý tài khoản trước plan 06.
 
-**Trạng thái:** NOT_RUN.
+**Trạng thái:** ĐÃ TRIỂN KHAI 2026-10-03 (62df011..c24eaca). validate Full PASS (unit 166, IT 159 pass/9 skip), Frontend PASS (149 test), `npm run build` PASS, không có pending model change. Kiểm tra trình duyệt thủ công: NOT_RUN. `GET /api/v1/auth/sessions` bỏ khỏi phạm vi plan 05. Test race SetRolePermissions × SetUserRoles để Skip, plan 06 bật lại.

@@ -19,6 +19,13 @@ namespace QuanLyBenhVien.Domain.Identity
 
         /// Nạp user kèm RoleAssignments + PermissionGrants (tracking) để sửa quyền.
         Task<User?> GetWithAccessAsync(Guid id, CancellationToken ct = default);
+
+        /// Khoá hàng user (FOR UPDATE) rồi nạp lại bản mới nhất kèm RoleAssignments + PermissionGrants (tracking).
+        /// Instance đã tracking trước đó (vd. lần thử trước bị rollback) bị bỏ để không dùng dữ liệu cũ. PHẢI gọi trong transaction.
+        Task<User?> GetWithAccessForUpdateAsync(Guid id, CancellationToken ct = default);
+
+        /// Role hiện có của user — không khoá, không tracking; chỉ để biết role nào cần khoá trước khi khoá User.
+        Task<IReadOnlyList<Guid>> GetRoleIdsAsync(Guid userId, CancellationToken ct = default);
         Task<int> CountActiveUsersInRoleAsync(Guid roleId, Guid? excludingUserId, CancellationToken ct = default);
         Task<IReadOnlyList<Guid>> GetUserIdsInRoleAsync(Guid roleId, CancellationToken ct = default);
 

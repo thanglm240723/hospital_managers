@@ -5,5 +5,5 @@ import * as mock from './rolesMock';
 const impl = isMockApiEnabled() ? mock : real;
 
 export const {
-  listRoles, getRole, createRole, updateRolePermissions,
+  listRoles, listPermissions, createRole, renameRole, updateRolePermissions,
 } = impl;

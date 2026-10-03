@@ -3,9 +3,11 @@ export const ROLES_LIST_SUCCESS = 'HMS/ROLES/LIST_SUCCESS';
 export const ROLES_LIST_FAILURE = 'HMS/ROLES/LIST_FAILURE';
 export const ROLES_SELECT = 'HMS/ROLES/SELECT';
 export const ROLES_UPSERT = 'HMS/ROLES/UPSERT';
+export const PERMISSIONS_LIST_SUCCESS = 'HMS/ROLES/PERMISSIONS_LIST_SUCCESS';
+export const PERMISSIONS_LIST_FAILURE = 'HMS/ROLES/PERMISSIONS_LIST_FAILURE';
 
 const initialState = {
-  items: [], loading: false, error: null, selectedId: null,
+  items: [], loading: false, error: null, selectedId: null, permissions: [], permissionsError: null,
 };
 
 export default function rolesReducer(state = initialState, action) {
@@ -16,6 +18,10 @@ export default function rolesReducer(state = initialState, action) {
       return { ...state, loading: false, items: action.payload };
     case ROLES_LIST_FAILURE:
       return { ...state, loading: false, error: action.payload };
+    case PERMISSIONS_LIST_SUCCESS:
+      return { ...state, permissions: action.payload, permissionsError: null };
+    case PERMISSIONS_LIST_FAILURE:
+      return { ...state, permissions: [], permissionsError: action.payload };
     case ROLES_SELECT:
       return { ...state, selectedId: action.payload };
     case ROLES_UPSERT: {
@@ -23,7 +29,7 @@ export default function rolesReducer(state = initialState, action) {
       return {
         ...state,
         items: exists ? state.items.map(r => (r.id === action.payload.id ? action.payload : r)) : [...state.items, action.payload],
-        selectedId: action.payload.id,
+        selectedId: exists ? state.selectedId : action.payload.id,
       };
     }
     default:

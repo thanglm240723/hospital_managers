@@ -8,6 +8,7 @@ import { WORKSPACES } from './workspaces';
 export const ROUTES = [
   { path: '/admin/users', workspaceId: 'admin', permission: PERMISSIONS.USERS_READ, availability: 'admin.users', label: 'Tài khoản' },
   { path: '/admin/roles', workspaceId: 'admin', permission: PERMISSIONS.ROLES_READ, availability: 'admin.roles', label: 'Vai trò & quyền' },
+  { path: '/admin/facilities', workspaceId: 'admin', permission: PERMISSIONS.FACILITIES_READ, availability: 'admin.facilities', label: 'Cơ cấu tổ chức' },
   {
     path: '/reception/patients',
     workspaceId: 'reception',

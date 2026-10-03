@@ -1,8 +1,11 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { userStatus } from '../userStatus';
 import UserStatusBadge from './UserStatusBadge';
 
-const UsersTable = ({ items, loading, selectedId, onSelect }) => (
+const UsersTable = ({
+  items, loading, selectedId, onSelect,
+}) => (
   <table className="c-table">
     <thead>
       <tr>
@@ -24,8 +27,8 @@ const UsersTable = ({ items, loading, selectedId, onSelect }) => (
         >
           <td>{user.fullName}</td>
           <td>{user.email}</td>
-          <td>{(user.roleNames || []).join(', ') || '—'}</td>
-          <td><UserStatusBadge status={user.status} /></td>
+          <td>{(user.roles || []).map(r => r.name).join(', ') || '—'}</td>
+          <td><UserStatusBadge status={userStatus(user)} /></td>
         </tr>
       ))}
     </tbody>

@@ -13,10 +13,10 @@ afterEach(() => {
 
 const cards = () => app.container.querySelectorAll('.c-workspace-picker__card');
 
-describe('PermissionRoute — availability thật của mốc 04 (tắt)', () => {
-  it('chỉ roles.read: vào /admin/roles, hiện "đang hoàn thiện", không báo thiếu quyền, không mount màn gọi API', () => {
-    app = mountApp({ permissions: [PERMISSIONS.ROLES_READ] });
-    expect(app.history.location.pathname).toBe('/admin/roles');
+describe('PermissionRoute — availability thật (admin.users và admin.roles đã bật; màn tiếp nhận còn tắt)', () => {
+  it('chỉ patients.read: vào /reception/patients, hiện "đang hoàn thiện", không báo thiếu quyền, không mount màn gọi API', () => {
+    app = mountApp({ permissions: [PERMISSIONS.PATIENTS_READ] });
+    expect(app.history.location.pathname).toBe('/reception/patients');
     expect(app.container.textContent).toContain('Khu vực đang hoàn thiện');
     expect(app.container.textContent).not.toContain('chưa được cấp quyền');
     expect(pageMounts).toEqual([]);
