@@ -169,11 +169,12 @@ public class RolesCommandTests : IAsyncLifetime
             new { permissionCodes = Permissions.IdentityAccess.Select(p => p.Code).Skip(1).ToArray() }, version);
         Assert.Equal(HttpStatusCode.Conflict, missingOne.StatusCode);
 
-        var unchanged = await PutAsync($"/api/v1/roles/{adminId}/permissions",
-            new { permissionCodes = Permissions.IdentityAccess.Select(p => p.Code).ToArray() }, version);
+        // "Không đổi" = đúng tập quyền hiện có của admin (seeder mặc định có thể cấp thêm quyền ngoài IdentityAccess).
+        var currentCodes = admin.GetProperty("permissionCodes").EnumerateArray().Select(p => p.GetString()!).ToArray();
+        var unchanged = await PutAsync($"/api/v1/roles/{adminId}/permissions", new { permissionCodes = currentCodes }, version);
         Assert.Equal(HttpStatusCode.OK, unchanged.StatusCode);
         Assert.Equal(version, (await JsonAsync(unchanged)).GetProperty("rowVersion").GetUInt32());
-        Assert.Equal(Permissions.IdentityAccess.Count, (await GetRoleAsync(adminId)).GetProperty("permissionCodes").GetArrayLength());
+        Assert.Equal(currentCodes.Length, (await GetRoleAsync(adminId)).GetProperty("permissionCodes").GetArrayLength());
         Assert.Equal(before, await TestData.QueryAsync(_factory, db => db.CacheInvalidations.CountAsync()));
     }
 

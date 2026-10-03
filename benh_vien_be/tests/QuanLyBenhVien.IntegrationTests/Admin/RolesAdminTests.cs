@@ -56,7 +56,7 @@ public class RolesAdminTests : IAsyncLifetime
         }
 
         var admin = roles.EnumerateArray().Single(r => r.GetProperty("code").GetString() == SystemRoles.Admin);
-        Assert.Equal(Permissions.IdentityAccess.Count, admin.GetProperty("permissionCodes").GetArrayLength());
+        Assert.Equal(Permissions.All.Count, admin.GetProperty("permissionCodes").GetArrayLength());
     }
 
     [Fact]

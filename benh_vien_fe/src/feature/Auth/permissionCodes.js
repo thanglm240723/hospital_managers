@@ -9,6 +9,10 @@ export const PERMISSIONS = {
   ROLES_READ: 'roles.read',
   ROLES_MANAGE: 'roles.manage',
   PERMISSIONS_READ: 'permissions.read',
+  FACILITIES_READ: 'facilities.read',
+  FACILITIES_MANAGE: 'facilities.manage',
+  STAFF_PROFILES_READ: 'staff-profiles.read',
+  STAFF_PROFILES_MANAGE: 'staff-profiles.manage',
 
   // DỰ_KIẾN — chưa có ở BE, CẦN_XÁC_NHẬN. Đặt tên theo quy ước <module>.<hành động> của Permissions.cs hiện có.
   PATIENTS_READ: 'patients.read', // DỰ_KIẾN — chưa có ở BE, CẦN_XÁC_NHẬN

@@ -16,5 +16,11 @@ public static class AuditActions
     public const string UserSetRoles = "users.set_roles";
     public const string UserPermissionGrant = "users.permissions.grant";
     public const string UserPermissionRevoke = "users.permissions.revoke";
+    public const string FacilityCreate = "facilities.create";
+    public const string FacilityUpdate = "facilities.update";
+    public const string StaffProfileCreate = "staff_profiles.create";
+    public const string StaffProfileUpdate = "staff_profiles.update";
+    public const string StaffWorkScopesSet = "staff_profiles.set_work_scopes";
     public const string AuthorizationDenied = "auth.authorization.denied";
+    public const string ResourceAccessDenied = "auth.resource.denied";
 }

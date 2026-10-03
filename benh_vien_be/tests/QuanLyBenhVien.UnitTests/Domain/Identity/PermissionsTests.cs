@@ -11,7 +11,7 @@ public class PermissionsTests
         var codes = Permissions.All.Select(p => p.Code).ToList();
 
         Assert.Equal(codes.Count, codes.Distinct(StringComparer.Ordinal).Count());
-        Assert.All(codes, code => Assert.Matches("^[a-z]+(\\.[a-z]+)+$", code));
+        Assert.All(codes, code => Assert.Matches("^[a-z]+(-[a-z]+)*(\\.[a-z]+)+$", code));
     }
 
     [Fact]

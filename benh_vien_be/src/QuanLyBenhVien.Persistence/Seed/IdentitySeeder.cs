@@ -16,10 +16,12 @@ internal sealed class IdentitySeeder
     private readonly ILogger<IdentitySeeder> _logger;
 
     private readonly ICacheInvalidator _cacheInvalidator;
+    private readonly RoleDefaultsApplier _applier;
 
     public IdentitySeeder(AppDbContext db, IPasswordHasher passwordHasher, IOptions<SeedOptions> options,
-        TimeProvider time, ILogger<IdentitySeeder> logger, ICacheInvalidator cacheInvalidator)
+        TimeProvider time, ILogger<IdentitySeeder> logger, ICacheInvalidator cacheInvalidator, RoleDefaultsApplier applier)
     {
+        _applier = applier;
         _cacheInvalidator = cacheInvalidator;
         _db = db;
         _passwordHasher = passwordHasher;
@@ -32,6 +34,7 @@ internal sealed class IdentitySeeder
     {
         await SyncPermissionCatalogAsync(ct);
         var adminRole = await EnsureSystemRolesAsync(ct);
+        await _applier.ApplyAsync(ct);
         await EnsureFirstAdminAsync(adminRole, ct);
     }
 

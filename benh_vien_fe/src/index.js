@@ -19,6 +19,7 @@ import PermissionRoute from './feature/Auth/PermissionRoute';
 import { StartContainer, NoAccessContainer } from './feature/Workspace';
 import { AdminUsersPage } from './feature/Admin';
 import { RolesPage } from './feature/Roles';
+import { FacilitiesPage } from './feature/Facilities';
 import { SearchPatientsPage, IntakePage } from './feature/Reception';
 import { DisplayQueuePage } from './feature/Display';
 import { ClinicQueuePage, EncounterPage } from './feature/Clinic';
@@ -73,6 +74,7 @@ const ReactApp = () => (
 
             <PermissionRoute exact path="/admin/users" component={AdminUsersPage} />
             <PermissionRoute exact path="/admin/roles" component={RolesPage} />
+            <PermissionRoute exact path="/admin/facilities" component={FacilitiesPage} />
 
             <PermissionRoute exact path="/reception/patients" component={SearchPatientsPage} />
             <PermissionRoute exact path="/reception/intake/:patientId" component={IntakePage} />

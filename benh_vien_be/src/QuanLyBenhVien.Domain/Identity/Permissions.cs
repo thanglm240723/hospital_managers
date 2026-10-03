@@ -25,6 +25,18 @@ public static class Permissions
         public const string Read = "permissions.read";
     }
 
+    public static class Facilities
+    {
+        public const string Read = "facilities.read";
+        public const string Manage = "facilities.manage";
+    }
+
+    public static class StaffProfiles
+    {
+        public const string Read = "staff-profiles.read";
+        public const string Manage = "staff-profiles.manage";
+    }
+
     /// Quyền của module IdentityAccess — seeder gán hết cho role admin.
     public static IReadOnlyList<PermissionDefinition> IdentityAccess { get; } =
     [
@@ -38,7 +50,16 @@ public static class Permissions
         new(Catalog.Read, "Quyền", "Xem danh mục quyền"),
     ];
 
-    public static IReadOnlyList<PermissionDefinition> All { get; } = [.. IdentityAccess];
+    /// Quyền của module cơ cấu tổ chức (spec phân quyền hai lớp).
+    public static IReadOnlyList<PermissionDefinition> Organization { get; } =
+    [
+        new(Facilities.Read, "Cơ cấu tổ chức", "Xem cơ sở, khoa, phòng"),
+        new(Facilities.Manage, "Cơ cấu tổ chức", "Tạo, đổi tên, ngừng dùng cơ sở, khoa, phòng"),
+        new(StaffProfiles.Read, "Nhân sự", "Xem hồ sơ nhân sự và phạm vi làm việc"),
+        new(StaffProfiles.Manage, "Nhân sự", "Tạo, sửa hồ sơ nhân sự và gán cơ sở/khoa làm việc"),
+    ];
+
+    public static IReadOnlyList<PermissionDefinition> All { get; } = [.. IdentityAccess, .. Organization];
 
     private static readonly HashSet<string> Codes = All.Select(p => p.Code).ToHashSet(StringComparer.Ordinal);
 

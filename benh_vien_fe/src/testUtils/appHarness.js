@@ -33,6 +33,7 @@ const page = name => class Page extends React.Component {
 
 const Users = page('users');
 const Roles = page('roles');
+const Facilities = page('facilities');
 const Patients = page('patients');
 const Intake = page('intake');
 const Queue = page('clinic-queue');
@@ -46,6 +47,7 @@ export const AppRoutes = () => (
     <PrivateRoute exact path="/no-access" component={NoAccessContainer} />
     <PermissionRoute exact path="/admin/users" component={Users} />
     <PermissionRoute exact path="/admin/roles" component={Roles} />
+    <PermissionRoute exact path="/admin/facilities" component={Facilities} />
     <PermissionRoute exact path="/reception/patients" component={Patients} />
     <PermissionRoute exact path="/reception/intake/:patientId" component={Intake} />
     <PermissionRoute exact path="/clinic/queue" component={Queue} />

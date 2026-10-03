@@ -7,6 +7,7 @@ import { ConfirmDialog } from 'feature/Shell';
 import { groupPermissions } from 'feature/Roles/permissionCatalog';
 import { userStatus } from '../userStatus';
 import UserStatusBadge from './UserStatusBadge';
+import StaffProfileSection from './StaffProfileSection';
 
 const idsOf = roles => (roles || []).map(r => r.id);
 const sameSet = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
@@ -281,6 +282,9 @@ class UserDetailPanel extends React.Component {
 
         {this.renderRoles()}
         {this.renderPermissions()}
+        <Can permission={PERMISSIONS.STAFF_PROFILES_READ}>
+          <StaffProfileSection key={user.id} userId={user.id} />
+        </Can>
 
         <section className="c-detail-panel__section">
           <h3>Mật khẩu</h3>
